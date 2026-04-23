@@ -3,8 +3,8 @@
    ============================================================ */
 
 const CR = {
-  session:      null,
   tgId:         null,
+  tgName:       null,
   shiftActive:  false,
   myOrders:     [],
   histOrders:   [],
@@ -15,20 +15,63 @@ const CR = {
 };
 
 // ---- Boot ----
-window.addEventListener("DOMContentLoaded", async () => {
-  const session = await verifySession("courier");
-  if (!session) {
-    setTimeout(() => showScreen("s-error"), 1600);
+window.addEventListener("DOMContentLoaded", () => {
+  const user = getTgUser();
+  if (!user) {
+    setTimeout(() => showScreen("s-error"), 1800);
     return;
   }
-  CR.session = session;
-  CR.tgId    = session.tgId;
-  document.getElementById("cr-name-sub").textContent = session.name || "Курьер";
+  CR.tgId   = String(user.id);
+  CR.tgName = user.first_name || "Курьер";
 
+  if (sessionStorage.getItem("delivery_auth_courier") === CR.tgId) {
+    initCourierApp();
+    setTimeout(() => showScreen("s-main"), 800);
+    return;
+  }
+
+  setTimeout(() => showScreen("s-auth"), 900);
+  setTimeout(() => {
+    const inp = document.getElementById("auth-input");
+    if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") submitAuthCode(); });
+  }, 1000);
+});
+
+async function submitAuthCode() {
+  const input = document.getElementById("auth-input");
+  const errEl = document.getElementById("auth-error");
+  const btn   = document.getElementById("auth-btn");
+  const code  = (input?.value || "").trim();
+
+  if (code.length < 4) {
+    input?.classList.add("shake");
+    setTimeout(() => input?.classList.remove("shake"), 400);
+    return;
+  }
+  if (btn) btn.disabled = true;
+  errEl?.classList.add("hidden");
+  input?.classList.remove("shake");
+
+  const ok = await checkAccessCode("courier", code);
+  if (!ok) {
+    errEl?.classList.remove("hidden");
+    input?.classList.add("shake");
+    setTimeout(() => input?.classList.remove("shake"), 400);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  sessionStorage.setItem("delivery_auth_courier", CR.tgId);
+  await initCourierApp();
+  showScreen("s-main");
+}
+
+async function initCourierApp() {
+  await waitAuth();
+  document.getElementById("cr-name-sub").textContent = CR.tgName;
   await checkShiftStatus();
   listenMyOrders();
-  setTimeout(() => showScreen("s-main"), 1200);
-});
+}
 
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -58,7 +101,7 @@ async function toggleShift() {
       // End shift
       await db.collection("courier_shifts").doc(CR.tgId).set({
         tgId: CR.tgId,
-        name: CR.session.name || "Курьер",
+        name: CR.tgName || "Курьер",
         active: false,
         endedAt: new Date().toISOString(),
       }, { merge: true });
@@ -68,7 +111,7 @@ async function toggleShift() {
       // Start shift
       await db.collection("courier_shifts").doc(CR.tgId).set({
         tgId: CR.tgId,
-        name: CR.session.name || "Курьер",
+        name: CR.tgName || "Курьер",
         active: true,
         startedAt: new Date().toISOString(),
         endedAt: null,

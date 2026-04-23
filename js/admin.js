@@ -3,7 +3,8 @@
    ============================================================ */
 
 const A = {
-  session:       null,
+  tgId:          null,
+  tgName:        null,
   menu:          [],
   allOrders:     [],
   filteredOrders:[],
@@ -14,18 +15,63 @@ const A = {
 };
 
 // ---- Boot ----
-window.addEventListener("DOMContentLoaded", async () => {
-  const session = await verifySession("admin");
-  if (!session) {
-    setTimeout(() => showScreen("s-error"), 1600);
+window.addEventListener("DOMContentLoaded", () => {
+  const user = getTgUser();
+  if (!user) {
+    setTimeout(() => showScreen("s-error"), 1800);
     return;
   }
-  A.session = session;
-  document.getElementById("admin-name-sub").textContent = session.name || "Администратор";
+  A.tgId   = String(user.id);
+  A.tgName = user.first_name || "Администратор";
+
+  if (sessionStorage.getItem("delivery_auth_admin") === A.tgId) {
+    initAdminApp();
+    setTimeout(() => showScreen("s-main"), 800);
+    return;
+  }
+
+  setTimeout(() => showScreen("s-auth"), 900);
+  setTimeout(() => {
+    const inp = document.getElementById("auth-input");
+    if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") submitAuthCode(); });
+  }, 1000);
+});
+
+async function submitAuthCode() {
+  const input = document.getElementById("auth-input");
+  const errEl = document.getElementById("auth-error");
+  const btn   = document.getElementById("auth-btn");
+  const code  = (input?.value || "").trim();
+
+  if (code.length < 4) {
+    input?.classList.add("shake");
+    setTimeout(() => input?.classList.remove("shake"), 400);
+    return;
+  }
+  if (btn) btn.disabled = true;
+  errEl?.classList.add("hidden");
+  input?.classList.remove("shake");
+
+  const ok = await checkAccessCode("admin", code);
+  if (!ok) {
+    errEl?.classList.remove("hidden");
+    input?.classList.add("shake");
+    setTimeout(() => input?.classList.remove("shake"), 400);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  sessionStorage.setItem("delivery_auth_admin", A.tgId);
+  await initAdminApp();
+  showScreen("s-main");
+}
+
+async function initAdminApp() {
+  await waitAuth();
+  document.getElementById("admin-name-sub").textContent = A.tgName;
   listenMenu();
   loadSettings();
-  setTimeout(() => showScreen("s-main"), 1200);
-});
+}
 
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));

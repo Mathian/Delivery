@@ -17,12 +17,24 @@
   </div>
 </div>
 
-<!-- AUTH ERROR -->
+<!-- CODE AUTH SCREEN -->
+<div id="s-auth" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-logo">📋</div>
+    <div class="auth-title">Панель оператора</div>
+    <div class="auth-sub">Введите 4-значный код доступа</div>
+    <input id="auth-input" class="auth-input" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+    <div id="auth-error" class="auth-error hidden">Неверный код. Попробуйте ещё раз.</div>
+    <button class="auth-btn" id="auth-btn" onclick="submitAuthCode()">Войти →</button>
+  </div>
+</div>
+
+<!-- AUTH ERROR (no Telegram / not allowed) -->
 <div id="s-error" class="screen">
   <div class="error-screen">
     <div class="error-icon">⛔</div>
-    <div class="error-title">Доступ запрещён</div>
-    <div class="error-sub">Сессия недействительна или истекла. Запросите новую ссылку через бота.</div>
+    <div class="error-title">Нет доступа</div>
+    <div class="error-sub">Откройте приложение через кнопку в Telegram-боте.</div>
   </div>
 </div>
 

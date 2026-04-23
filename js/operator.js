@@ -3,8 +3,8 @@
    ============================================================ */
 
 const OP = {
-  session:      null,
   tgId:         null,
+  tgName:       null,
   orders:       [],        // active orders
   beepInterval: null,
   hasPending:   false,
@@ -15,22 +15,66 @@ const OP = {
 };
 
 // ---- Boot ----
-window.addEventListener("DOMContentLoaded", async () => {
-  const session = await verifySession("operator");
-  if (!session) {
-    setTimeout(() => showScreen("s-error"), 1600);
+window.addEventListener("DOMContentLoaded", () => {
+  const user = getTgUser();
+  if (!user) {
+    setTimeout(() => showScreen("s-error"), 1800);
     return;
   }
-  OP.session = session;
-  OP.tgId    = session.tgId;
-  document.getElementById("op-name-sub").textContent = session.name || "Оператор";
-  // Set today's date in history tab
+  OP.tgId   = String(user.id);
+  OP.tgName = user.first_name || "Оператор";
+
+  // Resume cached session for this Telegram user
+  if (sessionStorage.getItem("delivery_auth_operator") === OP.tgId) {
+    initOperatorApp();
+    setTimeout(() => showScreen("s-main"), 800);
+    return;
+  }
+
+  // Show code entry screen
+  setTimeout(() => showScreen("s-auth"), 900);
+  document.addEventListener("click", initAudio, { once: true });
+  setTimeout(() => {
+    const inp = document.getElementById("auth-input");
+    if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") submitAuthCode(); });
+  }, 1000);
+});
+
+async function submitAuthCode() {
+  const input = document.getElementById("auth-input");
+  const errEl = document.getElementById("auth-error");
+  const btn   = document.getElementById("auth-btn");
+  const code  = (input?.value || "").trim();
+
+  if (code.length < 4) {
+    input?.classList.add("shake");
+    setTimeout(() => input?.classList.remove("shake"), 400);
+    return;
+  }
+  if (btn) btn.disabled = true;
+  errEl?.classList.add("hidden");
+  input?.classList.remove("shake");
+
+  const ok = await checkAccessCode("operator", code);
+  if (!ok) {
+    errEl?.classList.remove("hidden");
+    input?.classList.add("shake");
+    setTimeout(() => input?.classList.remove("shake"), 400);
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  sessionStorage.setItem("delivery_auth_operator", OP.tgId);
+  await initOperatorApp();
+  showScreen("s-main");
+}
+
+async function initOperatorApp() {
+  await waitAuth();
+  document.getElementById("op-name-sub").textContent = OP.tgName;
   setTodayDate();
   listenActiveOrders();
-  setTimeout(() => showScreen("s-main"), 1200);
-  // Init audio on first interaction
-  document.addEventListener("click", initAudio, { once: true });
-});
+}
 
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));

@@ -33,13 +33,18 @@ window.addEventListener("DOMContentLoaded", () => {
   S.tgUser = user;
   S.tgId   = String(user.id);
 
+  // Menu & settings are publicly readable — load immediately, no auth wait
+  loadSettings();
+  listenMenu();
+
+  // Show main screen after short splash regardless of auth state
+  setTimeout(() => showScreen("s-main"), 1200);
+
+  // Auth-dependent features load in background
   waitAuth().then(() => {
-    loadSettings();
-    listenMenu();
     listenActiveOrder();
     listenNotifications();
     loadHistory();
-    setTimeout(() => showScreen("s-main"), 1400);
   });
 });
 
