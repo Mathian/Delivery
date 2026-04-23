@@ -5,7 +5,8 @@
 // ---- State ----
 const S = {
   tgUser:       null,
-  tgId:         null,
+  tgId:         null,    // Telegram user.id (для уведомлений через бота)
+  clientUid:    null,    // uid из ?uid= (идентификатор клиента в Firebase)
   cart:         [],        // [{id,name,price,image,qty}]
   menu:         [],        // [{id,name,desc,price,image,available,category,order}]
   categories:   [],
@@ -25,22 +26,37 @@ const S = {
 
 // ---- Boot ----
 window.addEventListener("DOMContentLoaded", () => {
+  // Читаем ?uid= из URL (выдан ботом после регистрации телефона)
+  const params = new URLSearchParams(location.search);
+  const urlUid = params.get("uid");
+  if (urlUid) {
+    localStorage.setItem("delivery_uid", urlUid);
+    history.replaceState(null, "", location.pathname); // убираем из адресной строки
+  }
+  S.clientUid = localStorage.getItem("delivery_uid") || null;
+
+  // Telegram WebApp user (для отправки уведомлений через бот)
   const user = getTgUser();
-  if (!user) {
+  if (user) {
+    S.tgUser = user;
+    S.tgId   = String(user.id);
+  }
+
+  // Нет ни uid, ни tg-пользователя → открыто не через бота
+  if (!S.clientUid && !S.tgId) {
     setTimeout(() => showScreen("s-no-tg"), 1800);
     return;
   }
-  S.tgUser = user;
-  S.tgId   = String(user.id);
 
-  // Menu & settings are publicly readable — load immediately, no auth wait
+  // Используем tgId как основной clientId если uid ещё не получен
+  if (!S.clientUid && S.tgId) S.clientUid = S.tgId;
+
+  // Меню и настройки загружаем сразу (публичное чтение, не нужна auth)
   loadSettings();
   listenMenu();
 
-  // Show main screen after short splash regardless of auth state
   setTimeout(() => showScreen("s-main"), 1200);
 
-  // Auth-dependent features load in background
   waitAuth().then(() => {
     listenActiveOrder();
     listenNotifications();
@@ -318,9 +334,10 @@ async function submitOrder() {
   const deadline = new Date(now.getTime() + delivMs).toISOString();
 
   const order = {
-    clientTgId:    S.tgId,
-    clientName:    S.tgUser.first_name || "Клиент",
-    clientUsername:S.tgUser.username || "",
+    clientTgId:    S.tgId   || S.clientUid,
+    clientUid:     S.clientUid,
+    clientName:    S.tgUser?.first_name || "Клиент",
+    clientUsername:S.tgUser?.username || "",
     items:         S.cart.map(i => ({ id:i.id, name:i.name, price:i.price, qty:i.qty, subtotal:i.price*i.qty })),
     address: {
       street, house, apt,
@@ -367,10 +384,11 @@ async function submitOrder() {
 // ---- Active order ----
 function listenActiveOrder() {
   if (S.orderUnsub) S.orderUnsub();
-  if (!S.tgId) return;
+  const queryId = S.tgId || S.clientUid;
+  if (!queryId) return;
 
   S.orderUnsub = db.collection("orders")
-    .where("clientTgId", "==", S.tgId)
+    .where("clientTgId", "==", queryId)
     .where("status", "in", ["pending", "accepted", "preparing", "courier"])
     .orderBy("createdAt", "desc")
     .limit(1)
@@ -457,10 +475,11 @@ function stopCountdown() {
 
 // ---- History ----
 async function loadHistory() {
-  if (!S.tgId) return;
+  const queryId = S.tgId || S.clientUid;
+  if (!queryId) return;
   try {
     const snap = await db.collection("orders")
-      .where("clientTgId", "==", S.tgId)
+      .where("clientTgId", "==", queryId)
       .orderBy("createdAt", "desc")
       .limit(30)
       .get();
@@ -556,11 +575,12 @@ function repeatOrder() {
 
 // ---- Notifications from Firebase ----
 function listenNotifications() {
-  if (!S.tgId) return;
+  const queryId = S.tgId || S.clientUid;
+  if (!queryId) return;
   if (S.notifUnsub) S.notifUnsub();
 
   S.notifUnsub = db.collection("notifications")
-    .where("tgId", "==", S.tgId)
+    .where("tgId", "==", queryId)
     .where("read", "==", false)
     .orderBy("createdAt", "desc")
     .limit(5)
