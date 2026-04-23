@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Админ-панель</title>
+  <link rel="stylesheet" href="css/delivery.css">
+</head>
+<body>
+
+<!-- SPLASH / AUTH CHECK -->
+<div id="s-splash" class="screen active">
+  <div class="splash">
+    <div class="splash-logo">🔧</div>
+    <div class="splash-title">Админ-панель</div>
+    <div class="spinner" style="margin-top:8px;"></div>
+  </div>
+</div>
+
+<!-- AUTH ERROR -->
+<div id="s-error" class="screen">
+  <div class="error-screen">
+    <div class="error-icon">⛔</div>
+    <div class="error-title">Доступ запрещён</div>
+    <div class="error-sub">Сессия недействительна или истекла. Запросите новую ссылку через бота.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="s-main" class="screen">
+  <div class="header" style="--c-accent:#BF5AF2;">
+    <div class="header-logo">🔧</div>
+    <div class="header-info">
+      <div class="header-title">Админ-панель</div>
+      <div class="header-sub" id="admin-name-sub">Администратор</div>
+    </div>
+  </div>
+
+  <div class="app-body">
+
+    <!-- TAB: MENU -->
+    <div id="tab-menu" class="tab-content active flex-col">
+      <div class="section-header">
+        <div class="section-title">Меню</div>
+        <button class="section-action" onclick="openAddItem()">+ Добавить</button>
+      </div>
+      <div class="scroll flex-1">
+        <div style="padding:0 16px 80px;" id="admin-menu-list"></div>
+        <div id="menu-empty" class="empty-state hidden">
+          <div class="empty-icon">🍽️</div>
+          <div class="empty-text">Меню пусто</div>
+          <div class="empty-sub">Добавьте первый пункт меню</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: ORDERS -->
+    <div id="tab-orders" class="tab-content flex-col">
+      <div class="section-header">
+        <div class="section-title">Все заказы</div>
+        <select id="orders-filter" class="form-input" style="width:auto;padding:6px 10px;font-size:13px;" onchange="filterOrders()">
+          <option value="all">Все</option>
+          <option value="pending">Ожидают</option>
+          <option value="accepted">Принятые</option>
+          <option value="preparing">Готовятся</option>
+          <option value="courier">У курьера</option>
+          <option value="delivered">Доставлены</option>
+          <option value="cancelled">Отменены</option>
+        </select>
+      </div>
+      <div class="scroll flex-1">
+        <div style="padding:0 16px 80px;" id="admin-orders-list"></div>
+        <div id="orders-empty" class="empty-state hidden">
+          <div class="empty-icon">📦</div>
+          <div class="empty-text">Заказов нет</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: STATS -->
+    <div id="tab-stats" class="tab-content flex-col">
+      <div class="section-header"><div class="section-title">Статистика</div></div>
+      <div class="scroll flex-1">
+        <div class="stat-grid" id="stat-grid"></div>
+        <div style="padding:0 16px 16px;">
+          <div class="section-title" style="margin-bottom:10px;font-size:15px;">Последние заказы</div>
+          <div id="stats-orders-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: SETTINGS -->
+    <div id="tab-settings" class="tab-content flex-col">
+      <div class="scroll flex-1" style="padding-bottom:80px;">
+
+        <div class="settings-block">
+          <div class="settings-label">Режим работы</div>
+          <div class="settings-card">
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Кафе открыто</div>
+                <div class="settings-row-sub">Клиенты могут делать заказы</div>
+              </div>
+              <div class="toggle on" id="cafe-open-toggle" onclick="this.classList.toggle('on');saveSettings()"></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-label">Начало работы</div>
+              <input class="form-input settings-row-right" type="time" id="work-start" value="09:00" onchange="saveSettings()">
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-label">Конец работы</div>
+              <input class="form-input settings-row-right" type="time" id="work-end" value="22:00" onchange="saveSettings()">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <div class="settings-label">Доставка</div>
+          <div class="settings-card">
+            <div class="settings-row">
+              <div class="settings-row-label">Часы доставки</div>
+              <input class="form-input settings-row-right" type="number" id="deliv-hours" value="0" min="0" max="23" onchange="saveSettings()">
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-label">Минуты доставки</div>
+              <input class="form-input settings-row-right" type="number" id="deliv-mins" value="45" min="0" max="59" onchange="saveSettings()">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <div class="settings-label">Ключи доступа (4 символа)</div>
+          <div class="settings-card">
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Ключ администратора</div>
+                <div class="settings-row-sub" id="key-admin-sub">Не задан</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="promptSetKey('admin')">Изменить</button>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Ключ оператора</div>
+                <div class="settings-row-sub" id="key-operator-sub">Не задан</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="promptSetKey('operator')">Изменить</button>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Ключ курьера</div>
+                <div class="settings-row-sub" id="key-courier-sub">Не задан</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="promptSetKey('courier')">Изменить</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="tab-bar">
+    <button class="tab-btn active" id="tabbtn-menu" onclick="switchTab('menu')">
+      <div class="tab-icon">📋</div><div class="tab-label">Меню</div>
+    </button>
+    <button class="tab-btn" id="tabbtn-orders" onclick="switchTab('orders');loadAllOrders()">
+      <div class="tab-icon">📦</div><div class="tab-label">Заказы</div>
+    </button>
+    <button class="tab-btn" id="tabbtn-stats" onclick="switchTab('stats');loadStats()">
+      <div class="tab-icon">📊</div><div class="tab-label">Статистика</div>
+    </button>
+    <button class="tab-btn" id="tabbtn-settings" onclick="switchTab('settings');loadSettings()">
+      <div class="tab-icon">⚙️</div><div class="tab-label">Настройки</div>
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL: ADD/EDIT ITEM -->
+<div id="modal-item-edit" class="modal" onclick="if(event.target===this)closeModal('modal-item-edit')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="item-modal-title">Новый пункт меню</div>
+    <div class="modal-body">
+      <div class="flex gap-md items-center">
+        <div class="img-upload" id="item-img-preview" onclick="document.getElementById('item-img-file').click()">
+          <span>📷</span><span>Фото</span>
+        </div>
+        <input type="file" id="item-img-file" accept="image/*" style="display:none;" onchange="handleImgUpload(this)">
+        <div class="flex-1 flex-col gap-sm" style="display:flex;flex-direction:column;gap:8px;">
+          <input class="form-input" id="item-img-url" placeholder="Или вставьте URL фото" oninput="previewImgUrl(this.value)">
+          <select class="form-input" id="item-category">
+            <option value="">Категория…</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Название</div>
+        <input class="form-input" id="item-name" placeholder="Название блюда">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Описание</div>
+        <textarea class="form-input" id="item-desc" placeholder="Описание, состав…" rows="2"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Цена (₽)</div>
+          <input class="form-input" id="item-price" type="number" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Новая категория</div>
+          <input class="form-input" id="item-new-cat" placeholder="Или введите">
+        </div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label">Доступно для заказа</div>
+        <div class="toggle on" id="item-avail-toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveItem()">Сохранить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-item-edit')">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ORDER DETAIL -->
+<div id="modal-order-detail" class="modal" onclick="if(event.target===this)closeModal('modal-order-detail')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Детали заказа</div>
+    <div class="modal-body" id="admin-order-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-order-detail')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div id="modal-confirm-del" class="modal confirm-dialog" onclick="if(event.target===this)closeModal('modal-confirm-del')">
+  <div class="confirm-box">
+    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-title">Удалить?</div>
+    <div class="confirm-sub">Это действие нельзя отменить.</div>
+    <button class="btn btn-danger" onclick="confirmDeleteItem()">Удалить</button>
+    <button class="btn btn-secondary" onclick="closeModal('modal-confirm-del')">Отмена</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

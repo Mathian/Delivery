@@ -1,0 +1,159 @@
+/* ============================================================
+   TAXI Admin Panel — Styles
+   ============================================================ */
+:root {
+  --bg:#0a0a0a;--bg2:#111;--bg3:#181818;--card:#141414;
+  --border:#252525;--y:#f5c518;--ydim:rgba(245,197,24,.1);
+  --text:#f2f2f2;--text2:#8a8a8a;--text3:#484848;
+  --green:#22c55e;--red:#ef4444;--blue:#3b82f6;--orange:#f97316;
+  --r:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh}
+
+/* Login */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,rgba(245,197,24,.08) 0%,transparent 60%),var(--bg)}
+.login-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:36px;width:100%;max-width:360px}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo h1{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--y);letter-spacing:2px}
+.login-logo p{font-size:12px;color:var(--text3);margin-top:4px}
+.inp{width:100%;padding:13px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;outline:none;margin-bottom:10px}
+.inp:focus{border-color:var(--y)}
+.btn{width:100%;padding:14px;border-radius:10px;border:none;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer}
+.btn-y{background:var(--y);color:#000}
+.btn-y:hover{background:#d4a900}
+
+/* Admin layout */
+#admin-screen{display:none;min-height:100vh}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:220px;background:var(--bg2);border-right:1px solid var(--border);padding:20px 0;overflow-y:auto;z-index:10}
+.sidebar-logo{padding:0 16px 20px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.sidebar-logo h2{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--y);letter-spacing:1px}
+.sidebar-logo span{font-size:11px;color:var(--text3)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text2);transition:all .2s;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--ydim);color:var(--y);border-right:2px solid var(--y)}
+.nav-item .ico{font-size:16px;width:22px}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:8px}
+.main-content{margin-left:220px;padding:24px;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+.page-header{margin-bottom:24px}
+.page-header h1{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px}
+.page-header p{font-size:13px;color:var(--text2);margin-top:4px}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.sc-val{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--y);letter-spacing:1px}
+.sc-lbl{font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+
+/* Table */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.table-hdr{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.table-hdr h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.5px}
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:600px}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg3)}
+
+/* Badges */
+.badge{padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap}
+.b-green{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.b-red{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.b-yellow{background:var(--ydim);color:var(--y);border:1px solid rgba(245,197,24,.2)}
+.b-blue{background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
+.b-orange{background:rgba(249,115,22,.1);color:var(--orange);border:1px solid rgba(249,115,22,.2)}
+
+/* Buttons */
+.btn-sm{padding:6px 12px;border-radius:8px;border:none;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s}
+.btn-approve{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)}
+.btn-approve:hover{background:var(--green);color:#fff}
+.btn-reject{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.btn-reject:hover{background:var(--red);color:#fff}
+.btn-view{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.btn-view:hover{background:var(--bg);color:var(--text)}
+.btn-primary{background:var(--y);color:#000}
+.btn-primary:hover{background:#d4a900}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.btn-danger:hover{background:var(--red);color:#fff}
+.btn-sm:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+
+/* Chat */
+.chat-layout{display:grid;grid-template-columns:260px 1fr;gap:0;height:calc(100vh - 140px);background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.chat-list{border-right:1px solid var(--border);overflow-y:auto}
+.chat-list-item{padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s}
+.chat-list-item:hover,.chat-list-item.active{background:var(--ydim)}
+.cli-name{font-weight:700;font-size:13px;margin-bottom:2px}
+.cli-last{font-size:11px;color:var(--text3)}
+.cli-unread{background:var(--y);color:#000;font-size:10px;font-weight:800;padding:2px 6px;border-radius:8px;float:right}
+.chat-area{display:flex;flex-direction:column}
+.chat-msgs-admin{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:75%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5}
+.msg-user{background:var(--bg3);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}
+.msg-admin{background:var(--y);color:#000;align-self:flex-end;border-bottom-right-radius:4px}
+.msg-time{font-size:9px;opacity:.5;margin-top:3px}
+.chat-input-area{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border)}
+.chat-input-admin{flex:1;background:var(--bg3);border:1.5px solid var(--border);border-radius:22px;padding:9px 16px;color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;outline:none}
+.chat-input-admin:focus{border-color:var(--y)}
+.chat-send-btn{width:38px;height:38px;border-radius:50%;background:var(--y);border:none;cursor:pointer;font-size:16px;color:#000;flex-shrink:0}
+
+/* Settings */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.setting-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sc-info h4{font-size:14px;font-weight:800;margin-bottom:3px}
+.sc-info p{font-size:11px;color:var(--text2)}
+.toggle{width:44px;height:24px;border-radius:12px;background:var(--border);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--y)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.toggle.on::after{transform:translateX(20px)}
+
+/* Toast */
+.toast{position:fixed;top:20px;right:20px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;font-weight:700;z-index:999;transition:opacity .3s;opacity:0;pointer-events:none}
+.toast.show{opacity:1;pointer-events:auto}
+.toast.ok{border-color:rgba(34,197,94,.4)}
+.toast.err{border-color:rgba(239,68,68,.4)}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-chip{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);transition:all .2s}
+.filter-chip.on{border-color:var(--y);background:var(--ydim);color:var(--y)}
+
+.empty{padding:40px;text-align:center;color:var(--text3);font-size:13px}
+.info-box{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--blue);line-height:1.6}
+.warn-box{background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.2);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--orange);line-height:1.6}
+
+/* Mobile hamburger */
+.mob-header{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:var(--bg2);border-bottom:1px solid var(--border);align-items:center;padding:0 16px;gap:12px;z-index:20}
+.mob-header h2{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--y);letter-spacing:1px;flex:1}
+.burger{background:none;border:none;cursor:pointer;padding:6px;color:var(--text);font-size:22px;line-height:1}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:18}
+.sidebar-overlay.open{display:block}
+
+@media(max-width:900px){
+  .sidebar{width:180px}
+  .main-content{margin-left:180px}
+  .settings-grid{grid-template-columns:1fr}
+}
+/* Chat area mobile header */
+.chat-area-mob-hdr{display:none;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.chat-back-btn{background:none;border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;padding:6px 12px;cursor:pointer}
+.chat-back-btn:hover{border-color:var(--y);color:var(--y)}
+.chat-area-mob-title{font-weight:700;font-size:14px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+@media(max-width:600px){
+  .mob-header{display:flex}
+  .sidebar{position:fixed;top:0;left:-240px;width:220px;z-index:19;transition:left .25s;padding-top:60px}
+  .sidebar.mob-open{left:0}
+  .main-content{margin-left:0;padding:16px;padding-top:68px}
+  .chat-layout{grid-template-columns:1fr;height:auto}
+  .chat-list{border-right:none;border-bottom:1px solid var(--border);max-height:200px}
+  .settings-grid{grid-template-columns:1fr}
+
+  /* Mobile: when chat is open — hide list, show full-screen chat */
+  .chat-layout.mob-chat-open .chat-list{display:none}
+  .chat-layout.mob-chat-open .chat-area{height:calc(100vh - 120px)}
+  .chat-layout.mob-chat-open .chat-area-mob-hdr{display:flex}
+  .chat-layout.mob-chat-open .chat-msgs-admin{flex:1;min-height:0}
+}

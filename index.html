@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Доставка</title>
+  <link rel="stylesheet" href="css/delivery.css">
+</head>
+<body>
+
+<!-- ===== SPLASH ===== -->
+<div id="s-splash" class="screen active">
+  <div class="splash">
+    <div class="splash-logo">🍕</div>
+    <div class="splash-title">Вкусная доставка</div>
+    <div class="spinner" style="margin-top:8px;"></div>
+  </div>
+</div>
+
+<!-- ===== NO TELEGRAM ===== -->
+<div id="s-no-tg" class="screen">
+  <div class="error-screen">
+    <div class="error-icon">📱</div>
+    <div class="error-title">Откройте через Telegram</div>
+    <div class="error-sub">Запустите приложение через нашего Telegram-бота, нажав кнопку «Открыть меню».</div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="s-main" class="screen">
+  <div class="header">
+    <div class="header-logo">🍕</div>
+    <div class="header-info">
+      <div class="header-title">Вкусная доставка</div>
+      <div class="header-sub" id="hdr-delivery">Доставка ~45 мин</div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill open" id="cafe-pill">Открыто</div>
+    </div>
+  </div>
+
+  <div class="app-body">
+
+    <!-- TAB: MENU -->
+    <div id="tab-menu" class="tab-content active">
+      <div class="category-scroll" id="cat-list"></div>
+      <div class="scroll flex-1">
+        <div class="menu-grid" id="menu-grid"></div>
+        <div id="menu-empty" class="empty-state hidden">
+          <div class="empty-icon">🍽️</div>
+          <div class="empty-text">Меню пока пусто</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: CART -->
+    <div id="tab-cart" class="tab-content flex-col">
+      <div class="section-header">
+        <div class="section-title">Корзина</div>
+        <button class="section-action" onclick="clearCart()">Очистить</button>
+      </div>
+      <div id="cart-empty" class="cart-empty">
+        <div class="cart-empty-icon">🛒</div>
+        <div class="cart-empty-text">Корзина пуста</div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:4px;" onclick="switchTab('menu')">Перейти в меню</button>
+      </div>
+      <div id="cart-list" class="cart-list hidden"></div>
+      <div id="cart-footer" class="cart-footer hidden">
+        <div class="cart-total">
+          <div class="cart-total-label">Итого</div>
+          <div class="cart-total-price" id="cart-total-price">0 ₽</div>
+        </div>
+        <button class="btn btn-primary" onclick="openCheckout()">Оформить заказ</button>
+      </div>
+    </div>
+
+    <!-- TAB: ORDERS -->
+    <div id="tab-orders" class="tab-content flex-col">
+      <!-- Active order -->
+      <div id="active-section" class="hidden">
+        <div class="section-header" style="padding-bottom:4px;">
+          <div class="section-title">Активный заказ</div>
+        </div>
+        <div class="active-card" onclick="openOrderDetail(null,true)">
+          <div class="active-card-top">
+            <div>
+              <div class="active-title">Заказ #<span id="ao-num"></span></div>
+              <div class="active-addr" id="ao-addr"></div>
+            </div>
+            <div id="ao-badge"></div>
+          </div>
+          <div class="steps">
+            <div class="step" id="step-accepted"><div class="step-dot">✓</div><div class="step-label">Принят</div></div>
+            <div class="step-conn" id="conn1"></div>
+            <div class="step" id="step-preparing"><div class="step-dot">🍳</div><div class="step-label">Готовится</div></div>
+            <div class="step-conn" id="conn2"></div>
+            <div class="step" id="step-courier"><div class="step-dot">🚴</div><div class="step-label">В пути</div></div>
+            <div class="step-conn" id="conn3"></div>
+            <div class="step" id="step-delivered"><div class="step-dot">🎉</div><div class="step-label">Доставлен</div></div>
+          </div>
+          <div class="countdown">
+            <div class="progress-track"><div class="progress-fill ok" id="ao-progress" style="width:100%;"></div></div>
+            <div class="countdown-label" id="ao-time-left">Ожидайте…</div>
+          </div>
+        </div>
+      </div>
+      <!-- History -->
+      <div class="section-header">
+        <div class="section-title">История</div>
+      </div>
+      <div class="scroll flex-1">
+        <div style="padding:0 16px 80px;" id="history-list"></div>
+        <div id="history-empty" class="empty-state hidden">
+          <div class="empty-icon">📋</div>
+          <div class="empty-text">Заказов пока нет</div>
+          <div class="empty-sub">Сделайте первый заказ!</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="tab-bar">
+    <button class="tab-btn active" id="tabbtn-menu" onclick="switchTab('menu')">
+      <div class="tab-icon">🍕</div><div class="tab-label">Меню</div>
+    </button>
+    <button class="tab-btn" id="tabbtn-cart" onclick="switchTab('cart')">
+      <div class="tab-icon">🛒</div><div class="tab-label">Корзина</div>
+      <div class="tab-badge hidden" id="cart-badge">0</div>
+    </button>
+    <button class="tab-btn" id="tabbtn-orders" onclick="switchTab('orders')">
+      <div class="tab-icon">📋</div><div class="tab-label">Заказы</div>
+      <div class="tab-badge hidden" id="orders-badge">●</div>
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL: MENU ITEM -->
+<div id="modal-item" class="modal" onclick="if(event.target===this)closeModal('modal-item')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="mi-img-wrap" style="width:100%;aspect-ratio:16/9;background:var(--c-card-2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:64px;">
+      <img id="mi-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
+    </div>
+    <div style="padding:14px 16px 0;">
+      <div style="font-size:22px;font-weight:700;" id="mi-name"></div>
+      <div style="font-size:14px;color:var(--c-text-2);margin-top:7px;line-height:1.55;" id="mi-desc"></div>
+      <div style="font-size:24px;font-weight:700;color:var(--c-accent);margin-top:8px;" id="mi-price"></div>
+    </div>
+    <div class="modal-footer">
+      <div class="flex items-center gap-sm justify-between">
+        <div class="qty-ctrl">
+          <button class="qty-btn minus" onclick="miQty(-1)">−</button>
+          <div class="qty-num" id="mi-qty">1</div>
+          <button class="qty-btn" onclick="miQty(1)">+</button>
+        </div>
+        <button class="btn btn-primary flex-1" style="margin-left:12px;" onclick="addFromModal()">Добавить в корзину</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CHECKOUT -->
+<div id="modal-checkout" class="modal" onclick="if(event.target===this)closeModal('modal-checkout')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Оформление заказа</div>
+    <div class="modal-body">
+      <div class="form-group">
+        <div class="form-label">Улица</div>
+        <input class="form-input" id="addr-street" placeholder="Название улицы">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Дом</div>
+          <input class="form-input" id="addr-house" placeholder="№ дома">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Квартира</div>
+          <input class="form-input" id="addr-apt" placeholder="Кв/Офис">
+        </div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label">Есть домофон</div>
+        <div class="toggle" id="intercom-toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Комментарий (необязательно)</div>
+        <textarea class="form-input" id="order-comment" placeholder="Пожелания, аллергии…" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Способ оплаты</div>
+        <div class="pay-opts">
+          <div class="pay-opt selected" id="pay-cash" onclick="selectPayment('cash')">
+            <div class="pay-opt-icon">💵</div>
+            <div class="pay-opt-label">Наличные</div>
+          </div>
+          <div class="pay-opt" id="pay-card" onclick="selectPayment('card')">
+            <div class="pay-opt-icon">💳</div>
+            <div class="pay-opt-label">Карта</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-total-row">
+        <div class="text-muted">Итого:</div>
+        <div style="font-size:22px;font-weight:700;color:var(--c-accent);" id="checkout-total">0 ₽</div>
+      </div>
+      <button class="btn btn-primary" id="submit-btn" onclick="submitOrder()">Заказать 🎯</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-checkout')">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ORDER DETAIL -->
+<div id="modal-order" class="modal" onclick="if(event.target===this)closeModal('modal-order')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Детали заказа</div>
+    <div class="modal-body" id="order-detail-body"></div>
+    <div class="modal-footer">
+      <button id="repeat-btn" class="btn btn-outline" onclick="repeatOrder()">🔁 Повторить заказ</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-order')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- FULL-SCREEN NOTIFICATION -->
+<div id="notif-overlay" class="notif-overlay hidden">
+  <div class="notif-emoji" id="notif-emoji">🎉</div>
+  <div class="notif-title" id="notif-title"></div>
+  <div class="notif-msg" id="notif-msg"></div>
+  <div class="notif-btn-wrap">
+    <button class="btn btn-primary" onclick="dismissNotif()">Хорошо</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/client.js"></script>
+</body>
+</html>
