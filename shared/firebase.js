@@ -23,10 +23,15 @@ function initFirebase() {
     try {
       if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       db = firebase.firestore();
-      _fbR = true;
+      // _fbR устанавливается ТОЛЬКО после успешной авторизации.
+      // Если auth зависнет — все операции упадут в localStorage-fallback, сплэш не зависнет.
+      const timer = setTimeout(() => {
+        console.warn('[Firebase] Auth timeout — offline mode');
+        resolve();
+      }, 6000);
       firebase.auth().signInAnonymously()
-        .then(() => { console.log('[Firebase] Auth OK'); resolve(); })
-        .catch(e  => { console.warn('[Firebase] Auth:', e.message); resolve(); });
+        .then(() => { clearTimeout(timer); _fbR = true; console.log('[Firebase] Auth OK'); resolve(); })
+        .catch(e  => { clearTimeout(timer); console.warn('[Firebase] Auth fail:', e.message); resolve(); });
     } catch (e) {
       console.error('[Firebase] Init error:', e);
       resolve();
