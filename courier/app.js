@@ -26,6 +26,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   const user = await dbGet('users', STATE.uid);
   if (!user || user.role !== 'courier') { showScreen('s-no-access'); return; }
+  if (user.blocked) { showScreen('s-blocked'); return; }
 
   STATE.user = user; saveState();
   initMain();

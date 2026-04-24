@@ -104,6 +104,10 @@ function openAddItem() {
   document.getElementById('item-img').value = '';
   document.getElementById('item-available').checked = true;
   document.getElementById('item-delete-btn').classList.add('hidden');
+  const previewImg = document.getElementById('img-preview-img');
+  if (previewImg) { previewImg.style.display = 'none'; previewImg.src = ''; }
+  const hint = document.getElementById('img-upload-hint');
+  if (hint) hint.style.display = '';
   populateCatSelect();
   document.getElementById('item-sheet-overlay').classList.add('open');
 }
@@ -120,6 +124,13 @@ function openEditItem(itemId) {
   document.getElementById('item-img').value   = item.imageUrl || '';
   document.getElementById('item-available').checked = item.available !== false;
   document.getElementById('item-delete-btn').classList.remove('hidden');
+  const previewImg = document.getElementById('img-preview-img');
+  if (previewImg) {
+    if (item.imageUrl) { previewImg.src = item.imageUrl; previewImg.style.display = 'block'; }
+    else { previewImg.style.display = 'none'; previewImg.src = ''; }
+  }
+  const hint = document.getElementById('img-upload-hint');
+  if (hint) hint.style.display = item.imageUrl ? 'none' : '';
   populateCatSelect(item.category);
   document.getElementById('item-sheet-overlay').classList.add('open');
 }
@@ -308,17 +319,19 @@ async function loadSettings() {
   document.getElementById('set-close-time').value  = s.workClose || '22:00';
   document.getElementById('set-deliv-h').value     = s.deliveryHours   || 1;
   document.getElementById('set-deliv-m').value     = s.deliveryMinutes || 0;
+  document.getElementById('set-cooking-m').value   = s.cookingTimeMinutes || 30;
   CATEGORIES = s.categories || [];
   renderCategories();
 }
 
 async function saveSetting() {
   const data = {
-    isOpen:          document.getElementById('set-open').checked,
-    workOpen:        document.getElementById('set-open-time').value,
-    workClose:       document.getElementById('set-close-time').value,
-    deliveryHours:   parseInt(document.getElementById('set-deliv-h').value) || 0,
-    deliveryMinutes: parseInt(document.getElementById('set-deliv-m').value) || 0,
+    isOpen:              document.getElementById('set-open').checked,
+    workOpen:            document.getElementById('set-open-time').value,
+    workClose:           document.getElementById('set-close-time').value,
+    deliveryHours:       parseInt(document.getElementById('set-deliv-h').value) || 0,
+    deliveryMinutes:     parseInt(document.getElementById('set-deliv-m').value) || 0,
+    cookingTimeMinutes:  parseInt(document.getElementById('set-cooking-m').value) || 30,
     deliveryTime: `${document.getElementById('set-deliv-h').value}:${String(document.getElementById('set-deliv-m').value).padStart(2,'0')}`,
     categories: CATEGORIES
   };
@@ -347,4 +360,78 @@ function removeCategory(idx) {
   CATEGORIES.splice(idx, 1);
   renderCategories();
   saveSetting();
+}
+
+// ══════════════════════════════════════════════════════════
+// IMAGE UPLOAD
+// ══════════════════════════════════════════════════════════
+
+function handleImageFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Выберите изображение', 'warning'); return; }
+  const reader = new FileReader();
+  reader.onload = e => resizeImage(e.target.result, 800, dataUrl => previewImgUrl(dataUrl));
+  reader.readAsDataURL(file);
+}
+
+function resizeImage(src, maxW, callback) {
+  const img = new Image();
+  img.onload = () => {
+    let w = img.width, h = img.height;
+    if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL('image/jpeg', 0.75));
+  };
+  img.src = src;
+}
+
+function previewImgUrl(dataUrl) {
+  document.getElementById('item-img').value = dataUrl;
+  const previewImg = document.getElementById('img-preview-img');
+  const hint = document.getElementById('img-upload-hint');
+  previewImg.src = dataUrl;
+  previewImg.style.display = 'block';
+  hint.style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════
+// USER BLOCKING
+// ══════════════════════════════════════════════════════════
+
+async function loadUsersSection(role) {
+  const container = document.getElementById('users-block-list');
+  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+
+  const users = (await dbQuery('users', 'role', '==', role))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  if (!users.length) {
+    container.innerHTML = '<div class="text-dim text-sm" style="padding:12px 4px">Нет пользователей</div>';
+    return;
+  }
+
+  const roleEmoji = { client: '👤', operator: '🎧', courier: '🚴' };
+  container.innerHTML = users.map(u => `
+    <div class="list-item" style="padding:12px;margin-bottom:6px">
+      <div class="avatar">${roleEmoji[role] || '👤'}</div>
+      <div class="li-body">
+        <div class="li-title">${u.name || '—'}</div>
+        <div class="li-sub">${u.phone || '—'}</div>
+      </div>
+      <button class="btn-xs ${u.blocked ? 'btn-success' : 'btn-danger'}"
+              onclick="toggleBlock('${u.uid || u.id}', ${!!u.blocked}, '${role}')">
+        ${u.blocked ? '✅ Разбл.' : '🚫 Блок.'}
+      </button>
+    </div>
+  `).join('');
+}
+
+async function toggleBlock(uid, currentBlocked, role) {
+  const newState = !currentBlocked;
+  await dbSet('users', uid, { blocked: newState });
+  showToast(newState ? 'Пользователь заблокирован' : 'Пользователь разблокирован', newState ? 'warning' : 'success');
+  await loadUsersSection(role);
 }
