@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Доставка</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ── Reset & Base ────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --tg-bg: var(--tg-theme-bg-color, #ffffff);
+      --tg-text: var(--tg-theme-text-color, #1a1a1a);
+      --tg-hint: var(--tg-theme-hint-color, #8b8b8b);
+      --tg-link: var(--tg-theme-link-color, #2196f3);
+      --tg-btn: var(--tg-theme-button-color, #2196f3);
+      --tg-btn-text: var(--tg-theme-button-text-color, #ffffff);
+      --tg-secondary-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+
+      --accent: var(--tg-btn, #2196f3);
+      --accent-text: var(--tg-btn-text, #ffffff);
+      --surface: var(--tg-secondary-bg, #f4f4f5);
+      --border: rgba(0,0,0,0.08);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.14);
+      --green: #22c55e;
+      --red: #ef4444;
+      --orange: #f97316;
+      --purple: #a855f7;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--tg-bg);
+      color: var(--tg-text);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #app {
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Screens ─────────────────────────────────────── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--tg-bg);
+      transition: opacity 0.2s;
+    }
+    .screen.active { display: flex; }
+
+    /* ── Scrollable content ──────────────────────────── */
+    .screen-body {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+
+    /* ── Header ──────────────────────────────────────── */
+    .screen-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px 10px;
+      background: var(--tg-bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .screen-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      flex: 1;
+    }
+    .back-btn {
+      width: 36px; height: 36px;
+      border: none; background: var(--surface);
+      border-radius: 50%; cursor: pointer;
+      font-size: 18px; display: flex;
+      align-items: center; justify-content: center;
+      flex-shrink: 0;
+      color: var(--tg-text);
+    }
+
+    /* ── Buttons ─────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 14px 20px; border-radius: var(--radius);
+      font-size: 16px; font-weight: 600; border: none; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      text-decoration: none; width: 100%;
+    }
+    .btn:active { transform: scale(0.97); opacity: 0.85; }
+    .btn-primary { background: var(--accent); color: var(--accent-text); }
+    .btn-outline {
+      background: transparent; color: var(--accent);
+      border: 2px solid var(--accent);
+    }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-sm { padding: 9px 14px; font-size: 14px; border-radius: var(--radius-sm); width: auto; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Loading screen ──────────────────────────────── */
+    #s-loading {
+      align-items: center; justify-content: center; gap: 16px;
+    }
+    .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .spinner {
+      width: 48px; height: 48px; border: 4px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-label { color: var(--tg-hint); font-size: 15px; }
+
+    /* ── No-uid screen ───────────────────────────────── */
+    #s-no-uid {
+      align-items: center; justify-content: center; padding: 32px;
+      text-align: center; gap: 16px;
+    }
+    .no-uid-icon { font-size: 64px; margin-bottom: 8px; }
+    .no-uid-title { font-size: 22px; font-weight: 700; }
+    .no-uid-desc { font-size: 15px; color: var(--tg-hint); line-height: 1.5; }
+
+    /* ── Main screen (with tabs) ─────────────────────── */
+    #s-main { padding-bottom: 0; }
+
+    .tab-content { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .tab-content.active { display: flex; }
+
+    /* ── Cafe closed banner ──────────────────────────── */
+    #cafe-closed-banner {
+      display: none;
+      background: #fff3cd; color: #856404;
+      padding: 10px 16px; font-size: 14px; font-weight: 500;
+      text-align: center; border-bottom: 1px solid #ffc107;
+    }
+
+    /* ── Menu ────────────────────────────────────────── */
+    .menu-header {
+      padding: 16px 16px 8px;
+      background: var(--tg-bg);
+      flex-shrink: 0;
+    }
+    .menu-header h2 { font-size: 22px; font-weight: 800; }
+    .menu-header p { font-size: 14px; color: var(--tg-hint); margin-top: 2px; }
+
+    #menu-list { padding: 0 12px 100px; }
+
+    .menu-category { margin-top: 16px; }
+    .category-title {
+      font-size: 17px; font-weight: 700;
+      padding: 8px 4px 10px;
+      color: var(--tg-text);
+    }
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .menu-card {
+      background: var(--tg-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      border: 1px solid var(--border);
+      transition: box-shadow 0.15s;
+    }
+    .menu-card:active { box-shadow: var(--shadow-lg); }
+
+    .menu-card-img-wrap { width: 100%; aspect-ratio: 1; overflow: hidden; cursor: pointer; }
+    .menu-card-img { width: 100%; height: 100%; object-fit: cover; }
+    .menu-card-img-placeholder {
+      width: 100%; height: 100%;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px;
+    }
+
+    .menu-card-body { padding: 10px 10px 8px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    .menu-card-name { font-size: 14px; font-weight: 600; line-height: 1.3; cursor: pointer; }
+    .menu-card-desc { font-size: 12px; color: var(--tg-hint); line-height: 1.4; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .menu-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+    .menu-card-price { font-size: 15px; font-weight: 700; color: var(--accent); }
+
+    .add-btn {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--accent); color: var(--accent-text);
+      border: none; cursor: pointer; font-size: 20px; font-weight: 300;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: transform 0.1s;
+    }
+    .add-btn:active { transform: scale(0.88); }
+
+    .qty-ctrl { display: flex; align-items: center; gap: 6px; }
+    .qty-btn {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--surface); border: none; cursor: pointer;
+      font-size: 18px; display: flex; align-items: center; justify-content: center;
+      color: var(--tg-text); font-weight: 600; flex-shrink: 0;
+    }
+    .qty-btn:active { opacity: 0.6; }
+    .qty-num { font-size: 15px; font-weight: 700; min-width: 20px; text-align: center; }
+
+    /* ── Cart FAB ────────────────────────────────────── */
+    #cart-fab {
+      position: fixed; bottom: 74px; left: 16px; right: 16px;
+      background: var(--accent); color: var(--accent-text);
+      border-radius: var(--radius); padding: 14px 20px;
+      display: none; align-items: center; justify-content: space-between;
+      box-shadow: var(--shadow-lg); cursor: pointer; z-index: 100;
+      transition: transform 0.2s, opacity 0.2s;
+      border: none; font-size: 16px; font-weight: 600;
+    }
+    #cart-fab.visible { display: flex; }
+    #cart-fab:active { transform: scale(0.98); }
+    .cart-fab-left { display: flex; align-items: center; gap: 8px; }
+    .cart-fab-icon { font-size: 20px; }
+
+    /* ── Bottom nav ──────────────────────────────────── */
+    .bottom-nav {
+      display: flex; background: var(--tg-bg);
+      border-top: 1px solid var(--border);
+      padding: 6px 0 env(safe-area-inset-bottom, 0);
+      flex-shrink: 0; z-index: 50;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; gap: 3px;
+      border: none; background: none; cursor: pointer;
+      padding: 6px 0; color: var(--tg-hint);
+      font-size: 12px; font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn-icon { font-size: 24px; line-height: 1; }
+
+    /* ── Detail screen ───────────────────────────────── */
+    .detail-img-wrap { width: 100%; aspect-ratio: 16/10; overflow: hidden; }
+    .detail-img { width: 100%; height: 100%; object-fit: cover; }
+    .detail-img-placeholder {
+      width: 100%; height: 100%; background: var(--surface);
+      display: flex; align-items: center; justify-content: center; font-size: 80px;
+    }
+    .detail-body { padding: 20px 16px 120px; }
+    .detail-name { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .detail-desc { font-size: 15px; color: var(--tg-hint); line-height: 1.6; margin-bottom: 20px; }
+    .detail-price { font-size: 28px; font-weight: 800; color: var(--accent); margin-bottom: 24px; }
+    .detail-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 12px 16px env(safe-area-inset-bottom, 12px);
+      background: var(--tg-bg); border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    #detail-qty-ctrl { display: none; align-items: center; gap: 12px; }
+    #detail-qty-ctrl .qty-btn { width: 40px; height: 40px; font-size: 22px; background: var(--surface); }
+    #detail-qty-ctrl .qty-num { font-size: 20px; min-width: 28px; text-align: center; }
+    #detail-add-btn { flex: 1; padding: 13px; }
+
+    /* ── Cart screen ─────────────────────────────────── */
+    #cart-items { padding: 12px 16px; flex: 1; }
+    .cart-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .cart-item:last-child { border-bottom: none; }
+    .cart-item-img { width: 60px; height: 60px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0; }
+    .cart-item-img-placeholder {
+      width: 60px; height: 60px; border-radius: var(--radius-sm);
+      background: var(--surface); display: flex; align-items: center; justify-content: center;
+      font-size: 28px; flex-shrink: 0;
+    }
+    .cart-item-info { flex: 1; min-width: 0; }
+    .cart-item-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cart-item-price { font-size: 13px; color: var(--tg-hint); margin-top: 2px; }
+    .cart-item-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .cart-item-sub { font-size: 15px; font-weight: 700; }
+
+    #cart-summary {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 16px; border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .cart-summary-label { font-size: 16px; font-weight: 600; }
+    #cart-total-price { font-size: 20px; font-weight: 800; color: var(--accent); }
+
+    .cart-actions { padding: 12px 16px env(safe-area-inset-bottom, 16px); display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+
+    #cart-closed-note {
+      display: none; margin: 0 16px 8px;
+      background: #fff3cd; border-radius: var(--radius-sm);
+      padding: 10px 14px; font-size: 14px; color: #856404;
+      font-weight: 500;
+    }
+
+    /* ── Checkout ────────────────────────────────────── */
+    .co-section { padding: 16px; }
+    .co-section-title {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--tg-hint); margin-bottom: 12px;
+    }
+    .co-field { margin-bottom: 14px; }
+    .co-field label { font-size: 13px; font-weight: 600; color: var(--tg-hint); display: block; margin-bottom: 5px; }
+    .co-field input, .co-field select, .co-field textarea {
+      width: 100%; padding: 12px 14px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border); background: var(--surface);
+      color: var(--tg-text); font-size: 16px; outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+    .co-field input:focus, .co-field select:focus, .co-field textarea:focus {
+      border-color: var(--accent);
+    }
+    .co-field textarea { resize: none; height: 80px; }
+    .co-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    #co-intercom-toggle {
+      padding: 11px 16px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border); background: var(--surface);
+      font-size: 14px; font-weight: 600; cursor: pointer; color: var(--tg-hint);
+      width: 100%; text-align: left; transition: all 0.15s;
+    }
+    #co-intercom-toggle.on { border-color: var(--green); color: var(--green); background: rgba(34,197,94,0.08); }
+
+    #co-items {
+      background: var(--surface); border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .co-item {
+      display: flex; justify-content: space-between;
+      padding: 10px 14px; font-size: 14px; border-bottom: 1px solid var(--border);
+    }
+    .co-item:last-child { border-bottom: none; }
+    .co-total { font-weight: 700; font-size: 16px; }
+
+    .co-submit-wrap {
+      padding: 12px 16px env(safe-area-inset-bottom, 16px);
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Active Order ────────────────────────────────── */
+    .ao-header { padding: 20px 16px 0; }
+    .ao-order-id { font-size: 14px; color: var(--tg-hint); margin-bottom: 4px; }
+    .ao-status { font-size: 22px; font-weight: 800; color: var(--tg-text); }
+
+    .ao-progress { padding: 24px 16px 16px; }
+    .ao-steps {
+      display: flex; align-items: center; gap: 0; margin-bottom: 8px;
+    }
+    .ao-step {
+      flex: 1; height: 5px; background: var(--surface);
+      border-radius: 99px; transition: background 0.4s;
+    }
+    .ao-step + .ao-step { margin-left: 4px; }
+    .ao-step.done { background: var(--accent); }
+    .ao-step.active { background: var(--accent); opacity: 0.65; }
+
+    .ao-step-labels { display: flex; justify-content: space-between; }
+    .ao-step-label { font-size: 10px; color: var(--tg-hint); text-align: center; flex: 1; }
+    .ao-step-label.done { color: var(--accent); font-weight: 600; }
+    .ao-step-label.active { color: var(--accent); font-weight: 700; }
+
+    .ao-eta {
+      margin: 0 16px 20px;
+      background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #000 30%));
+      border-radius: var(--radius); padding: 16px 20px;
+      color: #fff; font-size: 17px; font-weight: 700;
+      text-align: center;
+    }
+
+    .ao-card {
+      margin: 0 16px 16px;
+      background: var(--surface); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .ao-card-title {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--tg-hint);
+      padding: 12px 14px 6px;
+    }
+    .ao-item {
+      display: flex; justify-content: space-between;
+      padding: 8px 14px; font-size: 14px; border-top: 1px solid var(--border);
+    }
+    .ao-total-row {
+      display: flex; justify-content: space-between;
+      padding: 12px 14px; font-size: 16px; font-weight: 700;
+      border-top: 2px solid var(--border);
+    }
+    .ao-info-row {
+      display: flex; gap: 8px; padding: 10px 14px;
+      border-top: 1px solid var(--border); font-size: 14px;
+      align-items: flex-start;
+    }
+    .ao-info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .ao-info-text { color: var(--tg-text); }
+    .ao-info-label { font-size: 12px; color: var(--tg-hint); }
+
+    /* ── Order history card ───────────────────────────── */
+    #orders-list { padding: 12px 16px 100px; display: flex; flex-direction: column; gap: 12px; }
+    .orders-header { padding: 16px 16px 0; }
+    .orders-header h2 { font-size: 22px; font-weight: 800; }
+
+    .order-card {
+      background: var(--tg-bg); border-radius: var(--radius);
+      box-shadow: var(--shadow); border: 1px solid var(--border);
+      overflow: hidden; padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .order-card-active { border-color: var(--accent); box-shadow: 0 4px 20px rgba(33,150,243,0.15); }
+    .order-card-header { display: flex; align-items: center; justify-content: space-between; }
+    .order-card-badge {
+      display: inline-flex; align-items: center;
+      padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 700;
+    }
+    .badge-active, .badge-pending { background: rgba(33,150,243,0.12); color: var(--accent); }
+    .badge-confirmed, .badge-cooking { background: rgba(249,115,22,0.12); color: var(--orange); }
+    .badge-courier_assigned { background: rgba(168,85,247,0.12); color: var(--purple); }
+    .badge-delivered { background: rgba(34,197,94,0.12); color: var(--green); }
+    .badge-cancelled { background: rgba(239,68,68,0.12); color: var(--red); }
+    .order-card-date { font-size: 12px; color: var(--tg-hint); }
+    .order-card-status { font-size: 16px; font-weight: 700; }
+    .order-card-items { font-size: 14px; color: var(--tg-hint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .order-card-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .order-card-total { font-size: 17px; font-weight: 800; color: var(--accent); flex: 1; }
+
+    /* ── Order detail ────────────────────────────────── */
+    .od-section { padding: 0 16px 16px; }
+    .od-section-title {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--tg-hint); padding: 16px 0 10px;
+    }
+    .od-item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; border-bottom: 1px solid var(--border); }
+    .od-item:last-child { border-bottom: none; }
+    .od-total-row { display: flex; justify-content: space-between; padding: 14px 0 0; font-size: 18px; font-weight: 800; }
+    .od-info-card {
+      background: var(--surface); border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .od-info-row { display: flex; padding: 11px 14px; gap: 10px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .od-info-row:last-child { border-bottom: none; }
+    .od-info-key { color: var(--tg-hint); min-width: 80px; }
+    .od-info-val { font-weight: 500; }
+    .od-status-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 99px; font-size: 13px; font-weight: 700; }
+    .od-repeat-wrap { padding: 12px 16px env(safe-area-inset-bottom, 16px); flex-shrink: 0; border-top: 1px solid var(--border); }
+
+    /* ── Profile tab ─────────────────────────────────── */
+    .profile-hero {
+      background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #000 40%));
+      padding: 32px 20px 28px; display: flex; flex-direction: column;
+      align-items: center; gap: 12px; color: #fff;
+    }
+    .profile-avatar {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; font-weight: 800; color: #fff;
+      border: 3px solid rgba(255,255,255,0.4);
+    }
+    .profile-hero-name { font-size: 22px; font-weight: 800; }
+    .profile-hero-phone { font-size: 14px; opacity: 0.8; }
+
+    .profile-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; padding: 16px;
+    }
+    .stat-card {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 16px; text-align: center;
+    }
+    .stat-value { font-size: 24px; font-weight: 800; color: var(--accent); }
+    .stat-label { font-size: 13px; color: var(--tg-hint); margin-top: 4px; }
+
+    .profile-menu { padding: 0 16px 100px; display: flex; flex-direction: column; gap: 8px; }
+    .profile-menu-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px; background: var(--surface);
+      border-radius: var(--radius-sm); cursor: pointer;
+      font-size: 15px; font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .profile-menu-item:active { opacity: 0.7; }
+    .profile-menu-icon { font-size: 22px; }
+    .profile-menu-arrow { margin-left: auto; color: var(--tg-hint); font-size: 18px; }
+
+    /* ── Notification overlay ────────────────────────── */
+    #notif-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      display: none; align-items: flex-end;
+      padding: 0 16px env(safe-area-inset-bottom, 24px);
+      pointer-events: none;
+    }
+    #notif-overlay.visible { display: flex; pointer-events: all; }
+
+    .notif-card {
+      width: 100%; background: var(--tg-bg);
+      border-radius: var(--radius); box-shadow: var(--shadow-lg);
+      padding: 20px; display: flex; gap: 16px;
+      align-items: flex-start;
+      animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border: 1px solid var(--border);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
+    }
+    .notif-emoji { font-size: 36px; flex-shrink: 0; }
+    .notif-content { flex: 1; }
+    .notif-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+    .notif-body  { font-size: 14px; color: var(--tg-hint); line-height: 1.5; }
+    .notif-close {
+      font-size: 20px; color: var(--tg-hint); cursor: pointer;
+      line-height: 1; flex-shrink: 0; padding: 2px;
+    }
+
+    /* ── Confirm dialog ──────────────────────────────── */
+    #confirm-dialog {
+      position: fixed; inset: 0; z-index: 1100;
+      display: none; align-items: flex-end;
+      background: rgba(0,0,0,0.45); padding: 0;
+      backdrop-filter: blur(4px);
+    }
+    #confirm-dialog.visible { display: flex; }
+    .confirm-sheet {
+      width: 100%; background: var(--tg-bg);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 24px 20px env(safe-area-inset-bottom, 24px);
+      display: flex; flex-direction: column; gap: 12px;
+      animation: sheetUp 0.25s ease;
+    }
+    @keyframes sheetUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    #confirm-msg { font-size: 17px; font-weight: 700; text-align: center; padding-bottom: 4px; }
+    .confirm-btns { display: flex; gap: 10px; }
+
+    /* ── Toast ───────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #333; color: #fff; padding: 10px 20px;
+      border-radius: 99px; font-size: 14px; font-weight: 500;
+      opacity: 0; transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none; z-index: 2000; white-space: nowrap;
+      max-width: calc(100vw - 32px); text-align: center;
+    }
+    .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast-success { background: var(--green); }
+    .toast-error   { background: var(--red); }
+    .toast-info    { background: #333; }
+
+    /* ── Empty state ─────────────────────────────────── */
+    .empty-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px; padding: 48px 24px;
+      color: var(--tg-hint); text-align: center; font-size: 15px;
+    }
+    .empty-icon { font-size: 56px; }
+
+    /* ── Loading spinner (inline) ─────────────────────── */
+    .loading-spinner {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 12px;
+      padding: 48px 24px; color: var(--tg-hint); font-size: 15px;
+    }
+
+    /* ── Divider ─────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 0; }
+
+    /* ── Scrollbar hide ──────────────────────────────── */
+    .screen-body::-webkit-scrollbar { display: none; }
+    .screen-body { scrollbar-width: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: Loading
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-loading" class="screen active">
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <div class="spinner-label">Загрузка...</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: No UID
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-no-uid" class="screen">
+    <div class="no-uid-icon">🤖</div>
+    <div class="no-uid-title">Откройте через бота</div>
+    <div class="no-uid-desc">
+      Это приложение работает только через Telegram бота.<br>
+      Пожалуйста, откройте бота и нажмите кнопку «Заказать».
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: Main (tabs: menu / orders / profile)
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-main" class="screen">
+
+    <!-- ── Tab: Menu ─────────────────────────────── -->
+    <div id="tab-menu" class="tab-content active">
+      <!-- Café closed banner -->
+      <div id="cafe-closed-banner"></div>
+
+      <div class="menu-header">
+        <h2>🍽️ Меню</h2>
+        <p>Свежие блюда с доставкой до двери</p>
+      </div>
+
+      <div class="screen-body">
+        <div id="menu-list">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div>Загружаем меню...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Orders ───────────────────────────── -->
+    <div id="tab-orders" class="tab-content">
+      <div class="orders-header">
+        <h2>📋 Заказы</h2>
+      </div>
+      <div class="screen-body">
+        <div id="orders-list">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div>Загружаем заказы...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Profile ──────────────────────────── -->
+    <div id="tab-profile" class="tab-content">
+      <div class="screen-body">
+        <div class="profile-hero">
+          <div class="profile-avatar">
+            <span id="profile-avatar-text">?</span>
+          </div>
+          <div class="profile-hero-name" id="profile-name">—</div>
+          <div class="profile-hero-phone" id="profile-phone">—</div>
+        </div>
+
+        <div class="profile-stats">
+          <div class="stat-card">
+            <div class="stat-value" id="profile-orders-count">0</div>
+            <div class="stat-label">Заказов выполнено</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="profile-total-spend">0 ₽</div>
+            <div class="stat-label">Потрачено всего</div>
+          </div>
+        </div>
+
+        <div class="profile-menu">
+          <div class="profile-menu-item" onclick="showTab('orders')">
+            <span class="profile-menu-icon">📦</span>
+            <span>История заказов</span>
+            <span class="profile-menu-arrow">›</span>
+          </div>
+          <div class="profile-menu-item" onclick="showTab('menu')">
+            <span class="profile-menu-icon">🍽️</span>
+            <span>Перейти в меню</span>
+            <span class="profile-menu-arrow">›</span>
+          </div>
+          <div class="profile-menu-item" onclick="openCart()">
+            <span class="profile-menu-icon">🛒</span>
+            <span>Моя корзина</span>
+            <span class="profile-menu-arrow">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Cart FAB ──────────────────────────────── -->
+    <button id="cart-fab" aria-label="Открыть корзину">
+      <div class="cart-fab-left">
+        <span class="cart-fab-icon">🛒</span>
+        <span id="cart-fab-count">0 товаров</span>
+      </div>
+      <span id="cart-fab-total">0 ₽</span>
+    </button>
+
+    <!-- ── Bottom Navigation ──────────────────────── -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-tab="menu">
+        <span class="nav-btn-icon">🍽️</span>
+        <span>Меню</span>
+      </button>
+      <button class="nav-btn" data-tab="orders">
+        <span class="nav-btn-icon">📋</span>
+        <span>Заказы</span>
+      </button>
+      <button class="nav-btn" data-tab="profile">
+        <span class="nav-btn-icon">👤</span>
+        <span>Профиль</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: Item Detail
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-detail" class="screen">
+    <button class="back-btn" id="detail-back" style="position:absolute;top:14px;left:14px;z-index:10;">‹</button>
+
+    <div class="screen-body">
+      <div id="detail-img-wrap" class="detail-img-wrap"></div>
+
+      <div class="detail-body">
+        <div class="detail-name" id="detail-name"></div>
+        <div class="detail-desc" id="detail-desc"></div>
+        <div class="detail-price" id="detail-price"></div>
+      </div>
+    </div>
+
+    <!-- Footer: add / qty control -->
+    <div class="detail-footer">
+      <div id="detail-qty-ctrl" class="qty-ctrl">
+        <button class="qty-btn" id="detail-qty-minus" style="width:44px;height:44px;font-size:24px;">−</button>
+        <span class="qty-num" id="detail-qty-num">0</span>
+        <button class="qty-btn" id="detail-qty-plus" style="width:44px;height:44px;font-size:24px;">+</button>
+      </div>
+      <button class="btn btn-primary" id="detail-add-btn" style="flex:1;">
+        🛒 Добавить в корзину
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: Cart
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-cart" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" id="cart-back">‹</button>
+      <h2>Корзина 🛒</h2>
+      <button id="cart-clear-btn" class="btn btn-sm btn-outline" style="width:auto;">Очистить</button>
+    </div>
+
+    <div class="screen-body">
+      <div id="cart-items"></div>
+    </div>
+
+    <!-- Summary + actions -->
+    <div id="cart-summary" style="display:none;">
+      <span class="cart-summary-label">Итого</span>
+      <span id="cart-total-price">0 ₽</span>
+    </div>
+
+    <div id="cart-closed-note">🕐 Кафе закрыто, заказ недоступен.</div>
+
+    <div class="cart-actions">
+      <button class="btn btn-primary" id="to-checkout-btn" style="display:none;">
+        Оформить заказ 🚀
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: Checkout
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-checkout" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" id="co-back">‹</button>
+      <h2>Оформление заказа</h2>
+    </div>
+
+    <div class="screen-body">
+      <!-- Delivery address -->
+      <div class="co-section">
+        <div class="co-section-title">📍 Адрес доставки</div>
+
+        <div class="co-field">
+          <label for="co-street">Улица *</label>
+          <input type="text" id="co-street" placeholder="Например: Ленина" autocomplete="street-address">
+        </div>
+
+        <div class="co-row">
+          <div class="co-field">
+            <label for="co-house">Дом *</label>
+            <input type="text" id="co-house" placeholder="42">
+          </div>
+          <div class="co-field">
+            <label for="co-flat">Квартира</label>
+            <input type="text" id="co-flat" placeholder="15">
+          </div>
+        </div>
+
+        <div class="co-field">
+          <label>Домофон</label>
+          <button id="co-intercom-toggle">Нет домофона</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Contact -->
+      <div class="co-section">
+        <div class="co-section-title">📞 Контакт</div>
+        <div class="co-field">
+          <label for="co-phone">Телефон</label>
+          <input type="tel" id="co-phone" placeholder="+7 999 000 00 00" autocomplete="tel">
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Payment -->
+      <div class="co-section">
+        <div class="co-section-title">💳 Оплата</div>
+        <div class="co-field">
+          <label for="co-payment">Способ оплаты</label>
+          <select id="co-payment">
+            <option value="cash">💵 Наличными курьеру</option>
+            <option value="card">💳 Картой курьеру</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Comment -->
+      <div class="co-section">
+        <div class="co-section-title">💬 Комментарий</div>
+        <div class="co-field">
+          <textarea id="co-comment" placeholder="Особые пожелания, аллергии, позвонить на въезде..."></textarea>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Order summary -->
+      <div class="co-section">
+        <div class="co-section-title">🧾 Состав заказа</div>
+        <div id="co-items"></div>
+      </div>
+    </div>
+
+    <div class="co-submit-wrap">
+      <button class="btn btn-primary" id="co-submit-btn">
+        ✅ Оформить заказ
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: Active Order Tracking
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-active-order" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" id="ao-back">‹</button>
+      <h2>Мой заказ</h2>
+    </div>
+
+    <div class="screen-body">
+      <!-- Status header -->
+      <div class="ao-header">
+        <div class="ao-order-id" id="ao-order-id"></div>
+        <div class="ao-status" id="ao-status-text">Ожидает подтверждения</div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="ao-progress">
+        <div class="ao-steps">
+          <div class="ao-step active"></div>
+          <div class="ao-step"></div>
+          <div class="ao-step"></div>
+          <div class="ao-step"></div>
+          <div class="ao-step"></div>
+        </div>
+        <div class="ao-step-labels">
+          <span class="ao-step-label active">Принят</span>
+          <span class="ao-step-label">Готовится</span>
+          <span class="ao-step-label">Передан</span>
+          <span class="ao-step-label">В пути</span>
+          <span class="ao-step-label">Доставлен</span>
+        </div>
+      </div>
+
+      <!-- ETA card -->
+      <div class="ao-eta" id="ao-eta">Рассчитываем время...</div>
+
+      <!-- Order items -->
+      <div class="ao-card">
+        <div class="ao-card-title">Состав заказа</div>
+        <div id="ao-items"></div>
+        <div class="ao-total-row">
+          <span>Итого</span>
+          <span id="ao-total">—</span>
+        </div>
+      </div>
+
+      <!-- Delivery info -->
+      <div class="ao-card" style="margin-bottom:24px;">
+        <div class="ao-card-title">Детали доставки</div>
+        <div class="ao-info-row">
+          <span class="ao-info-icon">📍</span>
+          <div>
+            <div class="ao-info-label">Адрес</div>
+            <div class="ao-info-text" id="ao-address">—</div>
+          </div>
+        </div>
+        <div class="ao-info-row">
+          <span class="ao-info-icon">💳</span>
+          <div>
+            <div class="ao-info-label">Оплата</div>
+            <div class="ao-info-text" id="ao-payment">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: Order Detail (from history)
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-order-detail" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" id="od-back">‹</button>
+      <h2>Детали заказа</h2>
+    </div>
+
+    <div class="screen-body">
+      <div class="od-section">
+        <div class="od-section-title">Информация</div>
+        <div class="od-info-card">
+          <div class="od-info-row">
+            <span class="od-info-key">Дата</span>
+            <span class="od-info-val" id="od-date">—</span>
+          </div>
+          <div class="od-info-row">
+            <span class="od-info-key">Статус</span>
+            <span class="od-info-val" id="od-status">—</span>
+          </div>
+          <div class="od-info-row">
+            <span class="od-info-key">Адрес</span>
+            <span class="od-info-val" id="od-address">—</span>
+          </div>
+          <div class="od-info-row">
+            <span class="od-info-key">Оплата</span>
+            <span class="od-info-val" id="od-payment">—</span>
+          </div>
+          <div class="od-info-row">
+            <span class="od-info-key">Коммент.</span>
+            <span class="od-info-val" id="od-comment">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="od-section">
+        <div class="od-section-title">Состав заказа</div>
+        <div id="od-items"></div>
+        <div class="od-total-row">
+          <span>Итого</span>
+          <span id="od-total">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="od-repeat-wrap">
+      <button class="btn btn-primary" id="od-repeat">🔁 Повторить заказ</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SCREEN: Order History (standalone, redirected from tab)
+  ═══════════════════════════════════════════════════ -->
+  <div id="s-history" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showTab('orders')">‹</button>
+      <h2>История заказов</h2>
+    </div>
+    <div class="screen-body">
+      <div id="history-list" style="padding:12px 16px 100px;display:flex;flex-direction:column;gap:12px;">
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div>История пуста</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       NOTIFICATION OVERLAY
+  ═══════════════════════════════════════════════════ -->
+  <div id="notif-overlay">
+    <div class="notif-card">
+      <div class="notif-emoji" id="notif-emoji">🎉</div>
+      <div class="notif-content">
+        <div class="notif-title" id="notif-title"></div>
+        <div class="notif-body"  id="notif-body"></div>
+      </div>
+      <div class="notif-close" onclick="document.getElementById('notif-overlay').classList.remove('visible')">✕</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       CONFIRM DIALOG
+  ═══════════════════════════════════════════════════ -->
+  <div id="confirm-dialog">
+    <div class="confirm-sheet">
+      <div id="confirm-msg">Вы уверены?</div>
+      <div class="confirm-btns">
+        <button class="btn btn-outline" id="confirm-no">Отмена</button>
+        <button class="btn btn-danger"  id="confirm-yes">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- Firebase v8 compat -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<!-- Telegram WebApp SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- App scripts -->
+<script src="js/config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/client.js"></script>
+</body>
+</html>

@@ -1,0 +1,330 @@
+/* ── Telegram CSS variables fallback ───────────────────────── */
+:root {
+  --tg-bg:          var(--tg-theme-bg-color, #ffffff);
+  --tg-text:        var(--tg-theme-text-color, #000000);
+  --tg-hint:        var(--tg-theme-hint-color, #999999);
+  --tg-link:        var(--tg-theme-link-color, #2481cc);
+  --tg-btn:         var(--tg-theme-button-color, #2481cc);
+  --tg-btn-text:    var(--tg-theme-button-text-color, #ffffff);
+  --tg-secondary:   var(--tg-theme-secondary-bg-color, #f1f1f1);
+  --accent:         #FF6B35;
+  --accent-dark:    #E55A24;
+  --success:        #25D366;
+  --danger:         #E53935;
+  --warning:        #FFA726;
+  --radius:         14px;
+  --radius-sm:      8px;
+  --shadow:         0 2px 12px rgba(0,0,0,.10);
+  --shadow-lg:      0 8px 32px rgba(0,0,0,.18);
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--tg-bg);
+  color: var(--tg-text);
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── App shell ─────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Screens ────────────────────────────────────────────────── */
+.screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.screen.active { display: flex; }
+
+/* ── Header ─────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  background: var(--tg-bg);
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  flex-shrink: 0;
+  position: sticky; top: 0; z-index: 10;
+}
+.header h1 { font-size: 18px; font-weight: 700; flex: 1; }
+.header .back-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--tg-btn); font-size: 18px; padding: 4px;
+}
+
+/* ── Scrollable content ─────────────────────────────────────── */
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 16px 80px;
+}
+
+/* ── Bottom navigation ──────────────────────────────────────── */
+.bottom-nav {
+  display: flex;
+  background: var(--tg-bg);
+  border-top: 1px solid rgba(0,0,0,.08);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  flex-shrink: 0;
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 8px 4px; border: none; background: none;
+  cursor: pointer; color: var(--tg-hint); font-size: 10px;
+  transition: color .2s;
+}
+.nav-btn .icon { font-size: 22px; line-height: 1; }
+.nav-btn.active { color: var(--accent); }
+
+/* ── Cards ──────────────────────────────────────────────────── */
+.card {
+  background: var(--tg-secondary);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.card-white {
+  background: var(--tg-bg);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn {
+  display: block; width: 100%; padding: 14px;
+  border: none; border-radius: var(--radius);
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  text-align: center; transition: opacity .15s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(.97); opacity: .9; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--tg-secondary); color: var(--tg-text); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-outline {
+  background: transparent; color: var(--accent);
+  border: 2px solid var(--accent);
+}
+.btn + .btn { margin-top: 8px; }
+.btn:disabled { opacity: .5; pointer-events: none; }
+
+/* ── Form fields ─────────────────────────────────────────────── */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 13px; color: var(--tg-hint); margin-bottom: 5px; }
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%; padding: 12px 14px;
+  background: var(--tg-secondary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 15px; color: var(--tg-text);
+  outline: none; resize: none;
+  transition: border-color .2s;
+  font-family: inherit;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus { border-color: var(--accent); }
+
+/* ── Toggle / Checkbox ──────────────────────────────────────── */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,.05);
+}
+.toggle { position: relative; width: 50px; height: 28px; }
+.toggle input { display: none; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: #ccc; border-radius: 28px; cursor: pointer;
+  transition: .3s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: white; top: 3px; left: 3px;
+  transition: .3s; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+.toggle input:checked + .toggle-slider { background: var(--accent); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+/* ── Badge / Status ─────────────────────────────────────────── */
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+}
+.badge-pending  { background: #FFF3E0; color: #E65100; }
+.badge-confirmed { background: #E3F2FD; color: #1565C0; }
+.badge-cooking  { background: #FFF8E1; color: #F57F17; }
+.badge-courier  { background: #E8F5E9; color: #2E7D32; }
+.badge-delivered { background: #E8F5E9; color: #1B5E20; }
+.badge-cancelled { background: #FFEBEE; color: #B71C1C; }
+
+/* ── Notification overlay ────────────────────────────────────── */
+.notification-overlay {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.5); align-items: center; justify-content: center;
+}
+.notification-overlay.show { display: flex; }
+.notification-box {
+  background: var(--tg-bg); border-radius: 20px;
+  padding: 28px 24px; max-width: 340px; width: 90%;
+  text-align: center; box-shadow: var(--shadow-lg);
+  animation: popIn .3s ease;
+}
+.notification-box .notif-icon { font-size: 56px; margin-bottom: 12px; }
+.notification-box h2 { font-size: 20px; margin-bottom: 8px; }
+.notification-box p { color: var(--tg-hint); margin-bottom: 20px; font-size: 14px; }
+
+@keyframes popIn {
+  from { transform: scale(.8); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── Confirm dialog ──────────────────────────────────────────── */
+.confirm-overlay {
+  display: none; position: fixed; inset: 0; z-index: 900;
+  background: rgba(0,0,0,.4); align-items: flex-end; justify-content: center;
+}
+.confirm-overlay.show { display: flex; }
+.confirm-sheet {
+  background: var(--tg-bg); border-radius: 20px 20px 0 0;
+  padding: 20px 20px 36px; width: 100%; max-width: 480px;
+  animation: slideUp .25s ease;
+}
+.confirm-sheet h3 { text-align: center; margin-bottom: 8px; }
+.confirm-sheet p { text-align: center; color: var(--tg-hint); font-size: 14px; margin-bottom: 20px; }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+/* ── Progress bar ────────────────────────────────────────────── */
+.progress-bar { height: 8px; background: var(--tg-secondary); border-radius: 8px; overflow: hidden; margin: 8px 0; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 8px; transition: width 1s linear; }
+
+/* ── Menu item card ──────────────────────────────────────────── */
+.menu-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--tg-secondary); border-radius: var(--radius);
+  padding: 12px; margin-bottom: 8px; cursor: pointer;
+  transition: transform .15s;
+}
+.menu-item:active { transform: scale(.98); }
+.menu-item img {
+  width: 64px; height: 64px; border-radius: var(--radius-sm);
+  object-fit: cover; flex-shrink: 0;
+  background: rgba(0,0,0,.06);
+}
+.menu-item-info { flex: 1; min-width: 0; }
+.menu-item-name { font-weight: 600; font-size: 15px; }
+.menu-item-desc { font-size: 12px; color: var(--tg-hint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu-item-price { font-weight: 700; color: var(--accent); margin-top: 4px; }
+.menu-item-qty {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.qty-btn {
+  width: 30px; height: 30px; border-radius: 50%; border: none;
+  background: var(--accent); color: white; font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.qty-btn:active { opacity: .8; }
+.qty-num { font-weight: 700; min-width: 20px; text-align: center; }
+
+/* ── Cart fab ────────────────────────────────────────────────── */
+.cart-fab {
+  position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: white; border: none; border-radius: 30px;
+  padding: 14px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(255,107,53,.45);
+  display: flex; align-items: center; gap: 10px;
+  transition: transform .15s, opacity .2s;
+  z-index: 50; white-space: nowrap;
+}
+.cart-fab.hidden { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(20px); }
+.cart-fab:active { transform: translateX(-50%) scale(.96); }
+
+/* ── Order card ──────────────────────────────────────────────── */
+.order-card {
+  background: var(--tg-secondary); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 10px; cursor: pointer;
+  transition: transform .15s;
+}
+.order-card:active { transform: scale(.98); }
+.order-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.order-card-id { font-weight: 700; }
+.order-card-info { font-size: 13px; color: var(--tg-hint); margin-top: 2px; }
+.order-card-total { font-weight: 700; color: var(--accent); margin-top: 6px; font-size: 16px; }
+
+/* ── Section title ───────────────────────────────────────────── */
+.section-title { font-size: 13px; font-weight: 600; color: var(--tg-hint); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 8px; }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.empty-state { text-align: center; padding: 48px 24px; }
+.empty-state .icon { font-size: 56px; margin-bottom: 14px; }
+.empty-state h3 { font-size: 18px; margin-bottom: 6px; }
+.empty-state p { color: var(--tg-hint); font-size: 14px; }
+
+/* ── Loading spinner ─────────────────────────────────────────── */
+.spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid var(--tg-secondary);
+  border-top-color: var(--accent);
+  animation: spin .7s linear infinite;
+  margin: 24px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Image upload ────────────────────────────────────────────── */
+.img-upload-area {
+  width: 100%; height: 120px; border: 2px dashed rgba(0,0,0,.15);
+  border-radius: var(--radius-sm); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; cursor: pointer;
+  color: var(--tg-hint); font-size: 13px; gap: 6px;
+  transition: border-color .2s;
+}
+.img-upload-area:hover { border-color: var(--accent); }
+.img-upload-area img { max-height: 100%; border-radius: 8px; }
+
+/* ── Tabs ────────────────────────────────────────────────────── */
+.tabs { display: flex; background: var(--tg-secondary); border-radius: var(--radius); padding: 4px; margin-bottom: 14px; }
+.tab-btn {
+  flex: 1; padding: 8px; border: none; background: none; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; color: var(--tg-hint); cursor: pointer; transition: all .2s;
+}
+.tab-btn.active { background: var(--tg-bg); color: var(--tg-text); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+
+/* ── Separator ───────────────────────────────────────────────── */
+.sep { height: 1px; background: rgba(0,0,0,.07); margin: 12px 0; }
+
+/* ── Row ─────────────────────────────────────────────────────── */
+.row { display: flex; align-items: center; justify-content: space-between; }
+.row-label { font-size: 14px; color: var(--tg-hint); }
+.row-value { font-weight: 600; font-size: 14px; }
+
+/* ── Pulse animation for new orders ─────────────────────────── */
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,53,.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(255,107,53,0); }
+}
+.pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+/* ── Courier shift banner ────────────────────────────────────── */
+.shift-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: white; padding: 16px; border-radius: var(--radius); margin-bottom: 14px;
+}
+.shift-banner .shift-icon { font-size: 32px; }
+.shift-banner h3 { font-size: 16px; margin-bottom: 2px; }
+.shift-banner p { font-size: 12px; opacity: .85; }
