@@ -19,16 +19,19 @@ let db   = null;
 let _fbR = false; // firebase ready
 
 function initFirebase() {
-  try {
-    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.firestore();
-    _fbR = true;
-    firebase.auth().signInAnonymously()
-      .then(() => console.log('[Firebase] Auth OK'))
-      .catch(e  => console.warn('[Firebase] Auth:', e.message));
-  } catch (e) {
-    console.error('[Firebase] Init error:', e);
-  }
+  return new Promise(resolve => {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.firestore();
+      _fbR = true;
+      firebase.auth().signInAnonymously()
+        .then(() => { console.log('[Firebase] Auth OK'); resolve(); })
+        .catch(e  => { console.warn('[Firebase] Auth:', e.message); resolve(); });
+    } catch (e) {
+      console.error('[Firebase] Init error:', e);
+      resolve();
+    }
+  });
 }
 
 // ── Write (merge) ──

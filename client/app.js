@@ -32,9 +32,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const urlUid = readUidFromUrl();
   if (urlUid) { STATE.uid = urlUid; saveClientState(); }
 
-  initFirebase();
-
-  await new Promise(r => setTimeout(r, 900)); // splash
+  await initFirebase();
 
   if (!STATE.uid) { showScreen('s-no-uid'); return; }
 

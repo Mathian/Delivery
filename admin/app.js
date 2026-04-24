@@ -21,8 +21,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const urlUid = readUidFromUrl();
   if (urlUid) { STATE.uid = urlUid; saveAdminState(); }
 
-  initFirebase();
-  await new Promise(r => setTimeout(r, 800));
+  await initFirebase();
 
   if (!STATE.uid) { showScreen('s-no-access'); return; }
 
