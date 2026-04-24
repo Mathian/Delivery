@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Курьер — Доставка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<!-- SPLASH -->
+<div class="screen active" id="s-splash">
+  <div class="splash">
+    <div class="splash-emoji">🚴</div>
+    <div class="splash-title">Курьер</div>
+    <div class="splash-sub">Система доставки</div>
+    <div class="splash-dots"><div class="splash-dot"></div><div class="splash-dot"></div><div class="splash-dot"></div></div>
+  </div>
+</div>
+
+<!-- NO ACCESS -->
+<div class="screen no-nav" id="s-no-access">
+  <div class="splash">
+    <div class="splash-emoji">⛔</div>
+    <div class="splash-title">Нет доступа</div>
+    <div class="splash-sub">Откройте через бот курьера</div>
+  </div>
+</div>
+
+<!-- MY DELIVERIES -->
+<div class="screen" id="s-deliveries">
+  <div class="page-hdr">
+    <div class="logo"><div class="logo-icon">🚴</div><div class="logo-text">Доставки</div></div>
+    <div id="shift-badge" class="badge badge-cancelled" style="cursor:pointer" onclick="toggleShift()">● Не на смене</div>
+  </div>
+
+  <!-- Shift card when NOT on shift -->
+  <div class="content" id="shift-off-card">
+    <div class="shift-card">
+      <div class="shift-status-dot" id="shift-dot"></div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:6px" id="shift-title">Вы не на смене</div>
+      <div class="text-dim text-sm" style="margin-bottom:20px">Начните смену, чтобы принимать заказы на доставку</div>
+      <button class="btn btn-primary" onclick="startShift()">▶ Начать смену</button>
+    </div>
+  </div>
+
+  <!-- Active deliveries when ON shift -->
+  <div class="content hidden" id="deliveries-content">
+    <div class="card card-body" style="background:var(--success-soft);border-color:var(--success)">
+      <div class="flex justify-between items-center">
+        <div><div style="font-weight:700;color:var(--success)">● Вы на смене</div><div class="text-xs text-dim" id="shift-since"></div></div>
+        <button class="btn-xs btn-danger" onclick="endShift()">Завершить</button>
+      </div>
+    </div>
+    <div id="my-deliveries-list">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="screen" id="s-history">
+  <div class="page-hdr"><div class="page-hdr-icon">📋</div><h2>История доставок</h2></div>
+  <div class="content" id="delivery-history-list">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" id="main-nav" style="display:none">
+  <div class="nav-item active" id="nav-del"  onclick="setCourierTab('s-deliveries',this)"><div class="nav-icon">📦</div><div class="nav-label">Доставки</div><div class="nav-badge hidden" id="del-badge">0</div></div>
+  <div class="nav-item"        id="nav-hist" onclick="setCourierTab('s-history',this);loadDeliveryHistory()"><div class="nav-icon">📋</div><div class="nav-label">История</div></div>
+</nav>
+
+<!-- ORDER DETAIL SHEET -->
+<div class="overlay" id="order-detail-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div id="order-detail-content"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px" id="order-detail-actions"></div>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="document.getElementById('order-detail-overlay').classList.remove('open')">Закрыть</button>
+  </div>
+</div>
+
+<!-- DELIVERED CONFIRM SHEET -->
+<div class="overlay" id="delivered-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div style="text-align:center;padding:8px 0 16px">
+      <div style="font-size:48px;margin-bottom:12px">✅</div>
+      <div class="sheet-title">Подтвердить доставку?</div>
+      <p class="text-dim text-sm" style="margin-top:6px">Заказ будет отмечен как доставленный. Это действие необратимо.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="document.getElementById('delivered-overlay').classList.remove('open')">Назад</button>
+      <button class="btn btn-success" onclick="confirmDelivered()">Доставил!</button>
+    </div>
+  </div>
+</div>
+
+<!-- RETURN CONFIRM SHEET -->
+<div class="overlay" id="return-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div style="text-align:center;padding:8px 0 16px">
+      <div style="font-size:48px;margin-bottom:12px">↩️</div>
+      <div class="sheet-title">Оформить возврат?</div>
+      <p class="text-dim text-sm" style="margin-top:6px">Заказ вернётся к оператору со статусом отменён.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="document.getElementById('return-overlay').classList.remove('open')">Назад</button>
+      <button class="btn btn-danger" onclick="confirmReturn()">Возврат</button>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/firebase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

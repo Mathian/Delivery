@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Оператор — Доставка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<!-- SPLASH -->
+<div class="screen active" id="s-splash">
+  <div class="splash">
+    <div class="splash-emoji">🎧</div>
+    <div class="splash-title">Оператор</div>
+    <div class="splash-sub">Управление заказами</div>
+    <div class="splash-dots"><div class="splash-dot"></div><div class="splash-dot"></div><div class="splash-dot"></div></div>
+  </div>
+</div>
+
+<!-- NO ACCESS -->
+<div class="screen no-nav" id="s-no-access">
+  <div class="splash">
+    <div class="splash-emoji">⛔</div>
+    <div class="splash-title">Нет доступа</div>
+    <div class="splash-sub">Откройте через бот оператора</div>
+  </div>
+</div>
+
+<!-- NEW ORDERS -->
+<div class="screen" id="s-new">
+  <div class="page-hdr">
+    <div class="logo"><div class="logo-icon">🎧</div><div class="logo-text">Новые</div></div>
+    <span id="new-count-badge" class="badge-num hidden">0</span>
+  </div>
+  <div class="content" id="new-orders-list">
+    <div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Нет новых заказов</div></div>
+  </div>
+</div>
+
+<!-- ACTIVE ORDERS -->
+<div class="screen" id="s-active">
+  <div class="page-hdr">
+    <div class="logo"><div class="logo-icon">🍳</div><div class="logo-text">Активные</div></div>
+  </div>
+  <div class="content" id="active-orders-list">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="screen" id="s-history">
+  <div class="page-hdr">
+    <div class="page-hdr-icon">📋</div><h2>История за день</h2>
+    <input type="date" class="inp" id="hist-date" style="width:auto;padding:8px 10px;font-size:13px" onchange="loadHistory()">
+  </div>
+  <div class="content" id="history-orders-list">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" id="main-nav" style="display:none">
+  <div class="nav-item active" id="nav-new"    onclick="setTab('s-new',this)">
+    <div class="nav-icon">🆕</div><div class="nav-label">Новые</div>
+    <div class="nav-badge hidden" id="new-nav-badge">0</div>
+  </div>
+  <div class="nav-item" id="nav-active" onclick="setTab('s-active',this);loadActiveOrders()">
+    <div class="nav-icon">🍳</div><div class="nav-label">Активные</div>
+  </div>
+  <div class="nav-item" id="nav-hist"   onclick="setTab('s-history',this);initHistory()">
+    <div class="nav-icon">📋</div><div class="nav-label">История</div>
+  </div>
+</nav>
+
+<!-- CONFIRM ORDER SHEET -->
+<div class="overlay" id="confirm-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Детали заказа</div>
+    <div id="confirm-order-content"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+      <button class="btn btn-success" onclick="acceptOrder()">✅ Подтвердить заказ</button>
+      <button class="btn btn-danger"  onclick="promptCancelOrder()">❌ Отменить заказ</button>
+      <button class="btn btn-ghost"   onclick="closeConfirm()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- CANCEL CONFIRM SHEET -->
+<div class="overlay" id="cancel-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="fs-notif-icon danger" style="margin:0 auto 12px;width:60px;height:60px;font-size:30px">⚠️</div>
+    <div class="sheet-title" style="text-align:center">Отменить заказ?</div>
+    <p class="text-dim" style="text-align:center;font-size:14px;margin-bottom:20px">Клиенту придёт уведомление об отмене. Вам нужно будет связаться с ним по телефону.</p>
+    <div class="btn-row">
+      <button class="btn btn-ghost"  onclick="document.getElementById('cancel-overlay').classList.remove('open')">Назад</button>
+      <button class="btn btn-danger" onclick="confirmCancel()">Да, отменить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN COURIER SHEET -->
+<div class="overlay" id="courier-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Выбрать курьера</div>
+    <p class="text-dim text-sm" style="margin-bottom:12px">Выберите курьера, которому передаёте заказ</p>
+    <div id="courier-list-assign"></div>
+    <button class="btn btn-ghost" style="margin-top:12px" onclick="document.getElementById('courier-overlay').classList.remove('open')">Отмена</button>
+  </div>
+</div>
+
+<!-- DELIVERED TOAST (small banner) -->
+<div id="delivered-banner" class="hidden" style="position:fixed;top:20px;left:20px;right:20px;z-index:9999;background:var(--success-soft);border:1.5px solid var(--success);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px">
+  <span style="font-size:22px">✅</span>
+  <div style="flex:1"><div style="font-weight:700;font-size:14px">Заказ доставлен</div><div id="delivered-banner-text" class="text-sm text-dim"></div></div>
+  <button onclick="document.getElementById('delivered-banner').classList.add('hidden')" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer">✕</button>
+</div>
+
+<script src="../shared/firebase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Доставка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<!-- SPLASH -->
+<div class="screen active" id="s-splash">
+  <div class="splash">
+    <div class="splash-emoji">🍕</div>
+    <div class="splash-title">Доставка</div>
+    <div class="splash-sub">Вкусно и быстро</div>
+    <div class="splash-dots"><div class="splash-dot"></div><div class="splash-dot"></div><div class="splash-dot"></div></div>
+  </div>
+</div>
+
+<!-- NO UID -->
+<div class="screen no-nav" id="s-no-uid">
+  <div class="splash">
+    <div class="splash-emoji">🔐</div>
+    <div class="splash-title">Откройте через бот</div>
+    <div class="splash-sub" style="max-width:280px">Нажмите /start в нашем боте, чтобы получить персональную ссылку для входа</div>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div class="screen no-nav" id="s-onboard">
+  <div style="padding:32px 24px 24px">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:52px;margin-bottom:12px">👋</div>
+      <h2>Добро пожаловать!</h2>
+      <p style="color:var(--text-dim);font-size:14px;margin-top:6px">Как вас зовут?</p>
+    </div>
+    <div class="section" style="gap:14px">
+      <div class="field">
+        <label>Ваше имя</label>
+        <input class="inp" id="ob-name" type="text" placeholder="Имя Фамилия">
+      </div>
+      <button class="btn btn-primary" id="ob-btn" onclick="onboardSubmit()">
+        <span>Начать заказывать</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MAIN ===================== -->
+
+<!-- MENU SCREEN -->
+<div class="screen" id="s-menu">
+  <div class="page-hdr">
+    <div class="logo"><div class="logo-icon">🍕</div><div class="logo-text">Доставка</div></div>
+    <div class="page-hdr-end">
+      <span id="cafe-status-badge" class="badge badge-delivered">Открыто</span>
+    </div>
+  </div>
+  <div id="closed-banner" class="content hidden">
+    <div class="alert-box warn">⏰ Кафе сейчас закрыто. Приходите в рабочее время.</div>
+  </div>
+  <div class="cat-tabs" id="cat-tabs"></div>
+  <div class="menu-grid" id="menu-grid"></div>
+
+  <!-- Cart FAB -->
+  <button class="cart-fab hidden" id="cart-fab" onclick="navTo('s-cart')">
+    <span>🛒 Корзина</span>
+    <span id="cart-fab-info"></span>
+  </button>
+</div>
+
+<!-- CART / CHECKOUT -->
+<div class="screen" id="s-cart">
+  <div class="page-hdr">
+    <button class="btn-icon btn-ghost" onclick="navTo('s-menu')" style="width:36px;height:36px;border-radius:10px;background:var(--card);border:1px solid var(--border)">←</button>
+    <h2 style="flex:1">Корзина</h2>
+  </div>
+  <div class="content">
+    <div id="cart-items"></div>
+
+    <div class="section">
+      <div class="section-title">Адрес доставки</div>
+      <div class="field"><label>Улица</label><input class="inp" id="addr-street" type="text" placeholder="ул. Ленина"></div>
+      <div class="inp-row">
+        <div class="field"><label>Дом</label><input class="inp" id="addr-house" type="text" placeholder="1"></div>
+        <div class="field"><label>Квартира</label><input class="inp" id="addr-apt" type="text" placeholder="10"></div>
+      </div>
+      <label class="check-row" id="intercom-row" onclick="toggleIntercom()">
+        <input type="checkbox" id="intercom-cb">
+        <div class="check-box" id="intercom-icon">🔔</div>
+        <span class="check-label">Есть домофон</span>
+      </label>
+      <div class="field hidden" id="intercom-code-wrap">
+        <label>Код домофона</label>
+        <input class="inp" id="intercom-code" type="text" placeholder="например: 25">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Оплата</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="payment-btns">
+        <button class="btn btn-secondary payment-opt" data-val="cash" onclick="selectPayment(this)">💵 Наличные</button>
+        <button class="btn btn-secondary payment-opt" data-val="card" onclick="selectPayment(this)">💳 Карта</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Комментарий</div>
+      <textarea class="inp" id="order-comment" rows="2" placeholder="Пожелания к заказу..."></textarea>
+    </div>
+
+    <div class="card card-body" style="border-color:var(--primary);background:var(--primary-soft)">
+      <div class="flex justify-between">
+        <span class="text-dim">Сумма заказа</span>
+        <span class="font-bold" id="cart-total-sum"></span>
+      </div>
+      <div class="flex justify-between mt-1">
+        <span class="text-dim">Доставка</span>
+        <span class="text-success font-bold">Бесплатно</span>
+      </div>
+      <div class="divider" style="margin:10px 0"></div>
+      <div class="flex justify-between">
+        <span class="font-bold">Итого</span>
+        <span class="font-xl text-primary" id="cart-total-final"></span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="order-btn" onclick="submitOrder()">Оформить заказ</button>
+  </div>
+</div>
+
+<!-- ACTIVE ORDER -->
+<div class="screen" id="s-order">
+  <div class="page-hdr">
+    <div class="logo"><div class="logo-icon">🍕</div></div>
+    <h2 style="flex:1">Мой заказ</h2>
+    <span class="badge" id="order-status-badge">—</span>
+  </div>
+  <div class="content">
+    <!-- Status track -->
+    <div class="status-track" id="status-track"></div>
+
+    <!-- Countdown -->
+    <div class="countdown-box" id="countdown-wrap" style="display:none">
+      <div class="countdown-lbl">Примерное время доставки</div>
+      <div class="countdown-val" id="countdown-val">—</div>
+      <div class="progress-wrap" style="margin-top:10px">
+        <div class="progress-bar" id="countdown-bar"></div>
+      </div>
+    </div>
+
+    <!-- Order details card -->
+    <div class="card" id="active-order-card">
+      <div class="card-hdr"><span class="font-bold">Состав заказа</span><span class="order-id" id="active-order-id"></span></div>
+      <div class="card-body">
+        <div id="active-order-items"></div>
+        <div class="divider" style="margin:10px 0"></div>
+        <div class="flex justify-between">
+          <span class="text-dim">Итого</span><span class="font-bold text-primary" id="active-order-total"></span>
+        </div>
+        <div class="flex justify-between mt-1">
+          <span class="text-dim">Оплата</span><span id="active-order-payment"></span>
+        </div>
+        <div class="flex justify-between mt-1">
+          <span class="text-dim">Адрес</span><span id="active-order-addr" style="text-align:right;max-width:60%;font-size:13px"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert-box info" id="order-info-txt"></div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="screen" id="s-history">
+  <div class="page-hdr"><div class="page-hdr-icon">📋</div><h2>История заказов</h2></div>
+  <div class="content" id="history-list">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" id="main-nav" style="display:none">
+  <div class="nav-item active" id="nav-menu" onclick="navTo('s-menu');setNav(this)">
+    <div class="nav-icon">🍽️</div><div class="nav-label">Меню</div>
+  </div>
+  <div class="nav-item" id="nav-order" onclick="navToOrder()">
+    <div class="nav-icon">📦</div><div class="nav-label">Заказ</div>
+    <div class="nav-badge hidden" id="order-nav-badge">!</div>
+  </div>
+  <div class="nav-item" id="nav-hist" onclick="navTo('s-history');setNav(this);loadHistory()">
+    <div class="nav-icon">🕐</div><div class="nav-label">История</div>
+  </div>
+</nav>
+
+<!-- FULL-SCREEN NOTIFICATIONS -->
+<div class="fs-notif" id="notif-accepted">
+  <div class="fs-notif-icon success">✅</div>
+  <div class="fs-notif-title">Заказ принят!</div>
+  <div class="fs-notif-text" id="notif-accepted-text">Ваш заказ принят в работу.</div>
+  <button class="btn btn-primary" onclick="closeNotif('notif-accepted')">Отлично, спасибо!</button>
+</div>
+<div class="fs-notif" id="notif-cancelled">
+  <div class="fs-notif-icon danger">❌</div>
+  <div class="fs-notif-title">Заказ отменён</div>
+  <div class="fs-notif-text">К сожалению, ваш заказ был отменён. Оператор свяжется с вами.</div>
+  <button class="btn btn-danger" onclick="closeNotif('notif-cancelled')">Хорошо, ожидаю</button>
+</div>
+<div class="fs-notif" id="notif-delivered">
+  <div class="fs-notif-icon success">🎉</div>
+  <div class="fs-notif-title">Доставлено!</div>
+  <div class="fs-notif-text">Ваш заказ доставлен. Приятного аппетита! 😋</div>
+  <button class="btn btn-primary" onclick="closeNotif('notif-delivered')">Спасибо!</button>
+</div>
+
+<script src="../shared/firebase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
