@@ -201,6 +201,16 @@ async function init() {
     const staffData = await dbGet('staff_uids', STATE.uid);
     if (!staffData || staffData.role !== 'admin') { showScreen('s-no-uid'); return; }
     STATE.staffData = staffData;
+
+    // ── Onboarding: first-time name + ToS ──────────────────
+    if (!staffData.tosAccepted) {
+      const tgName = window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '';
+      const nameInput = document.getElementById('onboard-name');
+      if (nameInput && tgName) nameInput.value = tgName;
+      showScreen('s-onboard');
+      return;
+    }
+
     setupMainScreen();
     showScreen('s-main');
     switchTab('menu');
@@ -844,5 +854,32 @@ async function saveAccessKey(role) {
   }
 }
 
+// ─── ONBOARDING ───────────────────────────────────────────────────────────────
+async function submitOnboarding() {
+  const nameVal = document.getElementById('onboard-name')?.value.trim();
+  const tosVal  = document.getElementById('onboard-tos')?.checked;
+  if (!nameVal) { toast('Введите ваше имя', 'error'); return; }
+  if (!tosVal)  { toast('Примите условия соглашения', 'error'); return; }
+
+  const btn = document.getElementById('btn-onboard-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем...'; }
+  try {
+    await dbSet('staff_uids', STATE.uid, { name: nameVal, tosAccepted: true, tosDate: new Date().toISOString() });
+    STATE.staffData = { ...STATE.staffData, name: nameVal, tosAccepted: true };
+    setupMainScreen();
+    showScreen('s-main');
+    switchTab('menu');
+  } catch (e) {
+    console.error('Onboarding error:', e);
+    toast('Ошибка сохранения', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Войти в систему →'; }
+  }
+}
+
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  initFirebase();
+  init();
+  document.getElementById('btn-onboard-submit')?.addEventListener('click', submitOnboarding);
+});

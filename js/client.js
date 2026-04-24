@@ -820,6 +820,7 @@ async function init() {
   tg.ready();
   tg.enableClosingConfirmation();
 
+  initFirebase();
   loadState();
   showScreen('s-loading');
 
@@ -845,21 +846,58 @@ async function init() {
 
   // Load user data
   try {
-    let user = await dbGet('users/' + uid);
-    if (!user) user = await dbGet('user_links/' + uid);
+    let user = await dbGet('users', uid);
+    if (!user) user = await dbGet('user_links', uid);
     STATE.user = user || {};
     saveState();
   } catch (_) {}
 
+  // ── Onboarding: first-time name + ToS ────────────────────
+  if (!STATE.user?.tosAccepted) {
+    // Pre-fill name from Telegram if available
+    const tgName = tg.initDataUnsafe?.user?.first_name || '';
+    const nameInput = document.getElementById('onboard-name');
+    if (nameInput && tgName) nameInput.value = tgName;
+    showScreen('s-onboard');
+    return; // submitOnboarding() will resume
+  }
+
+  await afterOnboarding();
+}
+
+async function submitOnboarding() {
+  const nameVal = document.getElementById('onboard-name')?.value.trim();
+  const tosVal  = document.getElementById('onboard-tos')?.checked;
+
+  if (!nameVal) { showToast('Введите ваше имя', 'error'); return; }
+  if (!tosVal)  { showToast('Примите пользовательское соглашение', 'error'); return; }
+
+  const btn = document.getElementById('btn-onboard-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем...'; }
+
+  try {
+    await dbSet('users', STATE.uid, { firstName: nameVal, tosAccepted: true, tosDate: new Date().toISOString() });
+    STATE.user = { ...STATE.user, firstName: nameVal, tosAccepted: true };
+    saveState();
+    await afterOnboarding();
+  } catch (e) {
+    console.error('Onboarding save error:', e);
+    showToast('Ошибка сохранения', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Продолжить →'; }
+  }
+}
+
+async function afterOnboarding() {
   // Start heartbeat
-  startHeartbeat(uid);
+  startHeartbeat(STATE.uid);
 
   // Load menu & settings
   await Promise.all([loadMenu(), loadCafeSettings()]);
 
   // Check for active order
   if (STATE.activeOrderId) {
-    const active = await dbGet('orders/' + STATE.activeOrderId);
+    const active = await dbGet('orders', STATE.activeOrderId);
     if (active && active.status !== 'delivered' && active.status !== 'cancelled') {
       subscribeActiveOrder(STATE.activeOrderId);
     } else {
@@ -870,6 +908,8 @@ async function init() {
 
   showTab('menu');
 }
+
+document.getElementById('btn-onboard-submit')?.addEventListener('click', submitOnboarding);
 
 // Kick off
 init().catch(e => {

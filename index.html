@@ -612,6 +612,30 @@
     </div>
   </div>
 
+  <!-- ══ SCREEN: Onboarding ══════════════════════════════ -->
+  <div id="s-onboard" class="screen" style="overflow-y:auto;">
+    <div style="padding:32px 20px 40px;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:64px;margin-bottom:12px;">👋</div>
+        <h2 style="font-size:22px;font-weight:700;">Добро пожаловать!</h2>
+        <p style="color:var(--tg-hint);margin-top:8px;font-size:14px;">Прежде чем начать, заполните профиль</p>
+      </div>
+      <div class="form-group">
+        <label>Ваше имя *</label>
+        <input id="onboard-name" type="text" placeholder="Иван Иванов" maxlength="50" autocomplete="name">
+      </div>
+      <div style="background:var(--tg-secondary);border-radius:12px;padding:14px;margin:16px 0;font-size:13px;color:var(--tg-hint);max-height:150px;overflow-y:auto;line-height:1.6;">
+        <b style="color:var(--tg-text);display:block;margin-bottom:6px;">Пользовательское соглашение</b>
+        Используя данное приложение, вы соглашаетесь с условиями обработки персональных данных. Ваше имя и номер телефона используются исключительно для оформления и доставки заказов. Данные хранятся в защищённом облаке Firebase и не передаются третьим лицам. Вы можете запросить удаление своих данных, обратившись к администратору.
+      </div>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:24px;">
+        <input id="onboard-tos" type="checkbox" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);">
+        <span style="font-size:14px;">Я прочитал(а) и принимаю <b>пользовательское соглашение</b></span>
+      </label>
+      <button class="btn btn-primary" id="btn-onboard-submit">Продолжить →</button>
+    </div>
+  </div>
+
   <!-- ══════════════════════════════════════════════════
        SCREEN: Main (tabs: menu / orders / profile)
   ═══════════════════════════════════════════════════ -->

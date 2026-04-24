@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Админ-панель</title>
-  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="css/style.css">
   <style>
     /* ── ADMIN-SPECIFIC STYLES ── */
     :root {
@@ -478,6 +478,30 @@
     <div class="no-uid-sub">Ваш аккаунт не найден или не имеет прав администратора.<br>Обратитесь к разработчику.</div>
   </div>
 
+  <!-- ══ SCREEN: Onboarding ══════════════════════════════ -->
+  <div id="s-onboard" class="screen" style="overflow-y:auto;">
+    <div style="padding:32px 20px 40px;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:64px;margin-bottom:12px;">🔧</div>
+        <h2 style="font-size:22px;font-weight:700;">Настройка профиля</h2>
+        <p style="color:var(--tg-hint);margin-top:8px;font-size:14px;">Введите имя для отображения в системе</p>
+      </div>
+      <div class="form-group">
+        <label>Ваше имя *</label>
+        <input id="onboard-name" type="text" placeholder="Иван Иванов" maxlength="50" autocomplete="name">
+      </div>
+      <div style="background:var(--tg-secondary);border-radius:12px;padding:14px;margin:16px 0;font-size:13px;color:var(--tg-hint);max-height:150px;overflow-y:auto;line-height:1.6;">
+        <b style="color:var(--tg-text);display:block;margin-bottom:6px;">Соглашение администратора</b>
+        Вы получаете доступ к административным функциям системы доставки. Вы несёте ответственность за корректность вносимых данных, настроек меню и управления персоналом. Все действия в системе логируются.
+      </div>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:24px;">
+        <input id="onboard-tos" type="checkbox" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);">
+        <span style="font-size:14px;">Я ознакомлен(а) с условиями и принимаю ответственность</span>
+      </label>
+      <button class="btn btn-primary" id="btn-onboard-submit">Войти в систему →</button>
+    </div>
+  </div>
+
   <!-- SCREEN: MAIN -->
   <div id="s-main" class="screen">
     <div class="topbar">
@@ -739,8 +763,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="../js/config.js"></script>
-<script src="../js/db.js"></script>
-<script src="../js/admin.js"></script>
+<script src="js/config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/admin.js"></script>
 </body>
 </html>

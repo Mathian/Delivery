@@ -190,21 +190,48 @@ async function init() {
   }
 
   STATE.staffData = staff;
+
+  // ── Onboarding: first-time name + ToS ────────────────────
+  if (!staff.tosAccepted) {
+    const tgName = window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '';
+    const nameInput = document.getElementById('onboard-name');
+    if (nameInput && tgName) nameInput.value = tgName;
+    showScreen('s-onboard');
+    return;
+  }
+
+  await afterOnboarding();
+}
+
+async function submitOnboarding() {
+  const nameVal = document.getElementById('onboard-name')?.value.trim();
+  const tosVal  = document.getElementById('onboard-tos')?.checked;
+  if (!nameVal) { toast('Введите ваше имя', 'error'); return; }
+  if (!tosVal)  { toast('Примите условия соглашения', 'error'); return; }
+
+  const btn = document.getElementById('btn-onboard-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем...'; }
+
+  try {
+    await dbSet('staff_uids', STATE.uid, { name: nameVal, tosAccepted: true, tosDate: new Date().toISOString() });
+    STATE.staffData = { ...STATE.staffData, name: nameVal, tosAccepted: true };
+    await afterOnboarding();
+  } catch (e) {
+    console.error('Onboarding error:', e);
+    toast('Ошибка сохранения', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Продолжить →'; }
+  }
+}
+
+async function afterOnboarding() {
   const nameEl = el('op-name');
-  if (nameEl) nameEl.textContent = staff.name || 'Оператор';
+  if (nameEl) nameEl.textContent = STATE.staffData?.name || 'Оператор';
 
-  // Start heartbeat
   startHeartbeat(STATE.uid);
-
-  // Load cafe settings
   loadCafeSettings();
-
-  // Subscribe to orders
   subscribeActiveOrders();
-
-  // Load history for today
   loadHistory(STATE.historyDate);
-
   showScreen('main');
 }
 
@@ -868,7 +895,8 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (e) {}
 
   init().then(() => {
-    // Start delivered orders subscription after init
     if (STATE.uid) subscribeDeliveredOrders();
   });
+
+  document.getElementById('btn-onboard-submit')?.addEventListener('click', submitOnboarding);
 });
