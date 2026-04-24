@@ -273,7 +273,9 @@ async function loadDeliveryHistory() {
   const container = document.getElementById('delivery-history-list');
   container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
 
-  const all = await dbQueryOrdered('orders', 'courierUid', '==', STATE.uid, 'createdAt', 'desc', 100);
+  const all = (await dbQuery('orders', 'courierUid', '==', STATE.uid))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .slice(0, 100);
   const done = all.filter(o => ['delivered','cancelled'].includes(o.status));
 
   if (!done.length) {

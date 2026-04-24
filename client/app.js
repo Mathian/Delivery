@@ -9,9 +9,9 @@ let MENU    = [];      // cached menu items
 let SETTINGS = {};     // cafe_settings
 let ACTIVE_ORDER = null;
 let _orderUnsub  = null;
-let _paymentMethod = 'cash';
+let _paymentMethod  = 'cash';
+let _deliveryType   = 'delivery';
 let _intercomChecked = false;
-let _pendingNotif = null; // notification to show after any user gesture
 
 // ── Boot ──
 window.addEventListener('DOMContentLoaded', async () => {
@@ -41,6 +41,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Check Firebase for existing profile
   const existing = await dbGet('users', STATE.uid);
   if (existing && existing.role === 'client') {
+    if (existing.blocked) { showScreen('s-blocked'); return; }
     STATE.user = existing; saveClientState(); initMain();
   } else {
     // Prefill name from Telegram or user_links
@@ -257,6 +258,17 @@ function toggleIntercom() {
   document.getElementById('intercom-code-wrap').classList.toggle('hidden', !_intercomChecked);
 }
 
+function selectDeliveryType(el) {
+  _deliveryType = el.dataset.val;
+  document.querySelectorAll('.delivery-type-btn').forEach(b => {
+    b.classList.toggle('btn-primary',   b.dataset.val === _deliveryType);
+    b.classList.toggle('btn-secondary', b.dataset.val !== _deliveryType);
+  });
+  const isPickup = _deliveryType === 'pickup';
+  document.getElementById('address-section').classList.toggle('hidden', isPickup);
+  document.getElementById('pickup-info').classList.toggle('hidden', !isPickup);
+}
+
 function selectPayment(el) {
   document.querySelectorAll('.payment-opt').forEach(b => b.classList.remove('btn-primary'));
   el.classList.add('btn-primary');
@@ -269,36 +281,36 @@ async function submitOrder() {
   if (!CART.length) { showToast('Корзина пуста', 'warning'); return; }
   if (!isCafeOpen()) { showToast('Кафе сейчас закрыто', 'warning'); return; }
 
+  const isPickup = _deliveryType === 'pickup';
   const street  = document.getElementById('addr-street').value.trim();
   const house   = document.getElementById('addr-house').value.trim();
   const apt     = document.getElementById('addr-apt').value.trim();
   const comment = document.getElementById('order-comment').value.trim();
   const code    = _intercomChecked ? document.getElementById('intercom-code').value.trim() : '';
 
-  if (!street || !house) { showToast('Укажите улицу и дом', 'warning'); return; }
+  if (!isPickup && (!street || !house)) { showToast('Укажите улицу и дом', 'warning'); return; }
 
   const btn = document.getElementById('order-btn');
   btn.disabled = true; btn.textContent = 'Оформляем...';
 
-  const orderId   = genOrderId();
-  const delivMins = (SETTINGS.deliveryHours || 0) * 60 + (SETTINGS.deliveryMinutes || 60);
-  const estimatedAt = new Date(Date.now() + delivMins * 60 * 1000).toISOString();
+  const orderId = genOrderId();
+  const isPickup = _deliveryType === 'pickup';
 
   const order = {
-    id:        orderId,
-    clientUid: STATE.uid,
-    clientName: STATE.user?.name || '',
+    id:          orderId,
+    clientUid:   STATE.uid,
+    clientName:  STATE.user?.name  || '',
     clientPhone: STATE.user?.phone || '',
     clientTgId:  STATE.user?.tgId  || '',
-    items:    CART.map(c => ({ id: c.id, name: c.name, price: c.price, qty: c.qty, emoji: c.emoji })),
-    total:    cartTotal(),
-    address:  { street, house, apt, hasIntercom: _intercomChecked, intercomCode: code },
-    payment:  _paymentMethod,
+    items:       CART.map(c => ({ id: c.id, name: c.name, price: c.price, qty: c.qty, emoji: c.emoji })),
+    total:       cartTotal(),
+    address:     isPickup ? null : { street, house, apt, hasIntercom: _intercomChecked, intercomCode: code },
+    payment:     _paymentMethod,
+    deliveryType: _deliveryType,
     comment,
-    status:    'pending',
-    createdAt: new Date().toISOString(),
-    estimatedAt,
-    deliveryMinutes: delivMins,
+    status:      'pending',
+    createdAt:   new Date().toISOString(),
+    // estimatedAt/deliveryMinutes set by operator on acceptance
     clientNotification: { type: '', seen: true }
   };
 
@@ -415,10 +427,13 @@ function renderActiveOrder() {
     }).join('');
   }
 
-  // Countdown
+  // Countdown — only when estimatedAt is set by operator (not on initial pending)
   const cdWrap = document.getElementById('countdown-wrap');
-  if (o.estimatedAt && !['delivered','cancelled'].includes(o.status)) {
+  const showCd = o.estimatedAt && !['pending','delivered','cancelled'].includes(o.status);
+  if (showCd) {
     cdWrap.style.display = 'block';
+    const cdLabel = document.querySelector('#countdown-wrap .countdown-lbl');
+    if (cdLabel) cdLabel.textContent = o.deliveryType === 'pickup' ? 'Готовность заказа' : 'Примерное время доставки';
     updateCountdown(o.estimatedAt);
   } else {
     cdWrap.style.display = 'none';
@@ -440,16 +455,21 @@ function renderActiveOrder() {
 
   // Info text
   const infoEl = document.getElementById('order-info-txt');
-  const infoMap = {
+  const pickup = o.deliveryType === 'pickup';
+  const infoMap = pickup ? {
+    pending:   'ℹ️ Ваш заказ ожидает подтверждения.',
+    cooking:   '🏪 Заказ принят! Приходите в кафе, когда он будет готов.',
+    delivered: '✅ Заказ выдан. Приятного аппетита!',
+    cancelled: '❌ Заказ отменён. Оператор свяжется с вами.'
+  } : {
     pending:    'ℹ️ Ваш заказ ожидает подтверждения оператором.',
-    accepted:   '👨‍🍳 Ваш заказ подтверждён и готовится.',
     cooking:    '👨‍🍳 Ваш заказ готовится.',
     delivering: '🚴 Курьер уже везёт ваш заказ!',
     delivered:  '✅ Заказ доставлен. Приятного аппетита!',
     cancelled:  '❌ Заказ отменён. Оператор свяжется с вами.'
   };
   infoEl.textContent = infoMap[o.status] || '';
-  infoEl.className   = `alert-box ${['delivered'].includes(o.status)?'success':o.status==='cancelled'?'danger':'info'}`;
+  infoEl.className   = `alert-box ${o.status==='delivered'?'success':o.status==='cancelled'?'danger':'info'}`;
 }
 
 let _cdInterval = null;
@@ -484,7 +504,9 @@ function updateCountdown(estimatedAt) {
 async function loadHistory() {
   const container = document.getElementById('history-list');
   container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
-  const orders = await dbQueryOrdered('orders', 'clientUid', '==', STATE.uid, 'createdAt', 'desc', 50);
+  const orders = (await dbQuery('orders', 'clientUid', '==', STATE.uid))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .slice(0, 50);
   if (!orders.length) {
     container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Заказов ещё нет</div></div>';
     return;

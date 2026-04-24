@@ -22,6 +22,15 @@
   </div>
 </div>
 
+<!-- BLOCKED -->
+<div class="screen no-nav" id="s-blocked">
+  <div class="splash">
+    <div class="splash-emoji">🚫</div>
+    <div class="splash-title">Доступ заблокирован</div>
+    <div class="splash-sub" style="max-width:280px">Ваш аккаунт заблокирован администратором. Обратитесь в поддержку.</div>
+  </div>
+</div>
+
 <!-- NO UID -->
 <div class="screen no-nav" id="s-no-uid">
   <div class="splash">
@@ -84,6 +93,17 @@
     <div id="cart-items"></div>
 
     <div class="section">
+      <div class="section-title">Способ получения</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button class="btn btn-primary delivery-type-btn" data-val="delivery" onclick="selectDeliveryType(this)" id="dt-delivery">🚴 Доставка</button>
+        <button class="btn btn-secondary delivery-type-btn" data-val="pickup" onclick="selectDeliveryType(this)" id="dt-pickup">🏪 Самовывоз</button>
+      </div>
+      <div class="alert-box info hidden" id="pickup-info">
+        Приходите в кафе, когда будет готово — мы сообщим в приложении!
+      </div>
+    </div>
+
+    <div class="section" id="address-section">
       <div class="section-title">Адрес доставки</div>
       <div class="field"><label>Улица</label><input class="inp" id="addr-street" type="text" placeholder="ул. Ленина"></div>
       <div class="inp-row">

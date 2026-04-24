@@ -29,6 +29,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   const user = await dbGet('users', STATE.uid);
   if (!user || user.role !== 'operator') { showScreen('s-no-access'); return; }
+  if (user.blocked) { showScreen('s-blocked'); return; }
 
   STATE.user = user; saveState();
   initMain();
@@ -174,22 +175,27 @@ async function acceptOrder() {
   const o = _pendingOrders.find(x => x.id === orderId);
   if (!o) { closeConfirm(); return; }
 
-  const settings = await dbGet('cafe_settings', 'main') || {};
-  const delivMins = (settings.deliveryHours || 0) * 60 + (settings.deliveryMinutes || 60);
-  const estimatedAt = new Date(Date.now() + delivMins * 60 * 1000).toISOString();
+  const settings  = await dbGet('cafe_settings', 'main') || {};
+  const isPickup  = o.deliveryType === 'pickup';
+  const baseMins  = isPickup
+    ? (settings.cookingTimeMinutes || 30)
+    : (settings.deliveryHours || 0) * 60 + (settings.deliveryMinutes || 60);
+  const estimatedAt = new Date(Date.now() + baseMins * 60 * 1000).toISOString();
+
+  const h = Math.floor(baseMins / 60), m = baseMins % 60;
+  const timeStr = h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
+  const msgText = isPickup
+    ? `Ваш заказ принят! Он будет готов примерно через ${timeStr}. Можете прийти забрать.`
+    : `Ваш заказ принят! Ожидайте доставку в течение ${timeStr}.`;
 
   await dbSet('orders', orderId, {
-    status:      'cooking',
-    operatorUid: STATE.uid,
+    status:       'cooking',
+    operatorUid:  STATE.uid,
     operatorName: STATE.user?.name || 'Оператор',
-    acceptedAt:  new Date().toISOString(),
+    acceptedAt:   new Date().toISOString(),
     estimatedAt,
-    deliveryMinutes: delivMins,
-    clientNotification: {
-      type:    'accepted',
-      message: `Ваш заказ принят! Ожидайте ~${delivMins} мин.`,
-      seen:    false
-    }
+    deliveryMinutes: baseMins,
+    clientNotification: { type: 'accepted', message: msgText, seen: false }
   });
 
   tgHaptic('success');
@@ -260,9 +266,13 @@ function renderActiveOrders(container) {
         ${_countdownInline(o.estimatedAt)}
       </div>
       <div class="order-card-foot">
-        ${o.status === 'cooking'
-          ? `<button class="btn btn-sm btn-primary" onclick="openAssignCourier('${o.id}')">🚴 Передать курьеру</button>`
-          : `<div class="alert-box success text-sm">Передан курьеру ${o.courierName||'—'}</div>`
+        ${o.deliveryType === 'pickup'
+          ? (o.status === 'cooking'
+            ? `<button class="btn btn-sm btn-success" onclick="issuePickupOrder('${o.id}')">🏪 Выдать заказ клиенту</button>`
+            : `<div class="alert-box success text-sm">✅ Самовывоз — заказ выдан</div>`)
+          : (o.status === 'cooking'
+            ? `<button class="btn btn-sm btn-primary" onclick="openAssignCourier('${o.id}')">🚴 Передать курьеру</button>`
+            : `<div class="alert-box success text-sm">🚴 Передан курьеру ${o.courierName||'—'}</div>`)
         }
       </div>
     </div>
@@ -274,6 +284,20 @@ function _countdownInline(estimatedAt) {
   const rem = new Date(estimatedAt).getTime() - Date.now();
   if (rem <= 0) return '<div class="order-row text-danger"><span class="order-row-icon">⏰</span>Время вышло!</div>';
   return `<div class="order-row"><span class="order-row-icon">⏳</span>${fmtCountdown(rem)} осталось</div>`;
+}
+
+// ── Issue pickup order (самовывоз) ──
+async function issuePickupOrder(orderId) {
+  if (!confirm('Выдать заказ клиенту?')) return;
+  await dbSet('orders', orderId, {
+    status:      'delivered',
+    deliveredAt: new Date().toISOString(),
+    issuedByOperator: STATE.uid,
+    clientNotification: { type: 'delivered', message: 'Заказ выдан. Приятного аппетита!', seen: false }
+  });
+  showToast('Заказ выдан клиенту', 'success');
+  playSuccess();
+  await loadActiveOrders();
 }
 
 // ── Assign courier ──

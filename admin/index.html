@@ -105,12 +105,28 @@
     </div>
 
     <div class="section">
-      <div class="section-title">Время доставки</div>
+      <div class="section-title">Время доставки (курьер)</div>
       <div class="inp-row">
         <div class="field"><label>Часы</label><input class="inp" type="number" id="set-deliv-h" min="0" max="5" value="1" onchange="saveSetting()"></div>
         <div class="field"><label>Минуты</label><input class="inp" type="number" id="set-deliv-m" min="0" max="59" value="0" onchange="saveSetting()"></div>
       </div>
-      <div class="alert-box info">Это время показывается клиенту как ожидаемый срок доставки</div>
+      <div class="alert-box info">Время показывается клиенту как срок доставки курьером</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Время приготовления (самовывоз)</div>
+      <div class="field"><label>Минуты</label><input class="inp" type="number" id="set-cooking-m" min="5" max="180" value="30" onchange="saveSetting()"></div>
+      <div class="alert-box info">Время готовности для клиентов, выбравших самовывоз</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Управление пользователями</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="loadUsersSection('client')">👤 Клиенты</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadUsersSection('operator')">🎧 Операторы</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadUsersSection('courier')">🚴 Курьеры</button>
+      </div>
+      <div id="users-block-list" style="margin-top:8px;display:flex;flex-direction:column;gap:8px"></div>
     </div>
 
     <div class="section">
@@ -144,8 +160,20 @@
         <div class="field"><label>Цена (₸) *</label><input class="inp" type="number" id="item-price" placeholder="1500"></div>
         <div class="field"><label>Категория</label><select class="inp" id="item-cat"><option value="">Без категории</option></select></div>
       </div>
-      <div class="field"><label>Эмодзи (вместо фото)</label><input class="inp" id="item-emoji" placeholder="🍕" style="font-size:22px;text-align:center"></div>
-      <div class="field"><label>URL изображения</label><input class="inp" id="item-img" placeholder="https://..."></div>
+      <div class="field"><label>Эмодзи (если нет фото)</label><input class="inp" id="item-emoji" placeholder="🍕" style="font-size:22px;text-align:center"></div>
+      <div class="field">
+        <label>Изображение</label>
+        <div class="alert-box info" style="font-size:12px;margin-bottom:8px">
+          📐 Рекомендуемый размер: <b>800 × 600 px</b>, соотношение <b>4:3</b>. Файл автоматически сожмётся до 800px.
+        </div>
+        <div class="img-upload" id="img-preview-wrap" onclick="document.getElementById('img-file-inp').click()">
+          <img id="img-preview-img" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+          <input type="file" id="img-file-inp" accept="image/*" style="display:none" onchange="handleImageFile(this)">
+          <div class="img-upload-txt" id="img-upload-hint">📸 Нажмите для загрузки файла</div>
+        </div>
+        <div style="text-align:center;color:var(--text-muted);font-size:12px;margin:6px 0">— или введите URL —</div>
+        <input class="inp" id="item-img" placeholder="https://example.com/image.jpg" oninput="previewImgUrl(this.value)">
+      </div>
       <div class="toggle-row">
         <span style="font-weight:600;font-size:14px">Доступно для заказа</span>
         <label class="toggle"><input type="checkbox" id="item-available" checked><div class="toggle-sl"></div></label>
