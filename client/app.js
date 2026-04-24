@@ -294,7 +294,6 @@ async function submitOrder() {
   btn.disabled = true; btn.textContent = 'Оформляем...';
 
   const orderId = genOrderId();
-  const isPickup = _deliveryType === 'pickup';
 
   const order = {
     id:          orderId,
