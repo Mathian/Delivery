@@ -166,13 +166,19 @@
         <div class="alert-box info" style="font-size:12px;margin-bottom:8px">
           📐 Рекомендуемый размер: <b>800 × 600 px</b>, соотношение <b>4:3</b>. Файл автоматически сожмётся до 800px.
         </div>
-        <div class="img-upload" id="img-preview-wrap" onclick="document.getElementById('img-file-inp').click()">
+        <div class="img-upload" id="img-preview-wrap" style="position:relative;overflow:hidden" onclick="document.getElementById('img-file-inp').click()">
           <img id="img-preview-img" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
           <input type="file" id="img-file-inp" accept="image/*" style="display:none" onchange="handleImageFile(this)">
           <div class="img-upload-txt" id="img-upload-hint">📸 Нажмите для загрузки файла</div>
         </div>
         <div style="text-align:center;color:var(--text-muted);font-size:12px;margin:6px 0">— или введите URL —</div>
         <input class="inp" id="item-img" placeholder="https://example.com/image.jpg" oninput="previewImgUrl(this.value)">
+      </div>
+      <div class="field">
+        <label>Варианты / размеры <span style="font-weight:400;color:var(--text-dim)">(опционально)</span></label>
+        <div class="alert-box info" style="font-size:12px;margin-bottom:8px">Если добавить варианты — клиент выбирает размер и цену. Основная цена игнорируется.</div>
+        <div id="variants-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+        <button class="btn btn-sm btn-outline" type="button" onclick="addVariant()">+ Добавить вариант</button>
       </div>
       <div class="toggle-row">
         <span style="font-weight:600;font-size:14px">Доступно для заказа</span>
@@ -195,7 +201,7 @@
   </div>
 </div>
 
-<script src="../shared/firebase.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="../shared/firebase.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

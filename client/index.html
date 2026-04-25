@@ -154,46 +154,13 @@
   </div>
 </div>
 
-<!-- ACTIVE ORDER -->
+<!-- ACTIVE ORDERS -->
 <div class="screen" id="s-order">
   <div class="page-hdr">
     <div class="logo"><div class="logo-icon">🍕</div></div>
-    <h2 style="flex:1">Мой заказ</h2>
-    <span class="badge" id="order-status-badge">—</span>
+    <h2 style="flex:1">Мои заказы</h2>
   </div>
-  <div class="content">
-    <!-- Status track -->
-    <div class="status-track" id="status-track"></div>
-
-    <!-- Countdown -->
-    <div class="countdown-box" id="countdown-wrap" style="display:none">
-      <div class="countdown-lbl">Примерное время доставки</div>
-      <div class="countdown-val" id="countdown-val">—</div>
-      <div class="progress-wrap" style="margin-top:10px">
-        <div class="progress-bar" id="countdown-bar"></div>
-      </div>
-    </div>
-
-    <!-- Order details card -->
-    <div class="card" id="active-order-card">
-      <div class="card-hdr"><span class="font-bold">Состав заказа</span><span class="order-id" id="active-order-id"></span></div>
-      <div class="card-body">
-        <div id="active-order-items"></div>
-        <div class="divider" style="margin:10px 0"></div>
-        <div class="flex justify-between">
-          <span class="text-dim">Итого</span><span class="font-bold text-primary" id="active-order-total"></span>
-        </div>
-        <div class="flex justify-between mt-1">
-          <span class="text-dim">Оплата</span><span id="active-order-payment"></span>
-        </div>
-        <div class="flex justify-between mt-1">
-          <span class="text-dim">Адрес</span><span id="active-order-addr" style="text-align:right;max-width:60%;font-size:13px"></span>
-        </div>
-      </div>
-    </div>
-
-    <div class="alert-box info" id="order-info-txt"></div>
-  </div>
+  <div class="content" id="orders-content"></div>
 </div>
 
 <!-- HISTORY -->
@@ -231,6 +198,12 @@
   <div class="fs-notif-text">К сожалению, ваш заказ был отменён. Оператор свяжется с вами.</div>
   <button class="btn btn-danger" onclick="closeNotif('notif-cancelled')">Хорошо, ожидаю</button>
 </div>
+<div class="fs-notif" id="notif-delivering">
+  <div class="fs-notif-icon success">🚴</div>
+  <div class="fs-notif-title">Курьер в пути!</div>
+  <div class="fs-notif-text" id="notif-delivering-text">Курьер везёт ваш заказ!</div>
+  <button class="btn btn-primary" onclick="closeNotif('notif-delivering')">Отлично!</button>
+</div>
 <div class="fs-notif" id="notif-delivered">
   <div class="fs-notif-icon success">🎉</div>
   <div class="fs-notif-title">Доставлено!</div>
@@ -238,7 +211,7 @@
   <button class="btn btn-primary" onclick="closeNotif('notif-delivered')">Спасибо!</button>
 </div>
 
-<script src="../shared/firebase.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="../shared/firebase.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

@@ -22,6 +22,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   await initFirebase();
 
+  // Последний резерв: найти uid через Telegram ID (uid_index)
+  if (!STATE.uid) {
+    const tgUid = await resolveUidByTgId();
+    if (tgUid) { STATE.uid = tgUid; saveState(); }
+  }
+
   if (!STATE.uid) { showScreen('s-no-access'); return; }
 
   const user = await dbGet('users', STATE.uid);

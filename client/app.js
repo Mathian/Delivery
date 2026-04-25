@@ -4,11 +4,13 @@
    ============================================================ */
 
 const STATE = { uid: null, user: null };
-let CART    = [];      // [{id, name, price, qty, emoji}]
-let MENU    = [];      // cached menu items
-let SETTINGS = {};     // cafe_settings
-let ACTIVE_ORDER = null;
-let _orderUnsub  = null;
+let CART     = [];   // [{cartKey, id, variantName, name, price, qty, emoji}]
+let MENU     = [];   // cached menu items
+let SETTINGS = {};   // cafe_settings
+let ACTIVE_ORDERS  = [];   // все активные заказы клиента (макс 3)
+let _ordersUnsub   = null;
+let _shownNotifs   = new Set(); // ключи уже показанных уведомлений
+let _cdIntervals   = {};        // {orderId: intervalId}
 let _paymentMethod  = 'cash';
 let _deliveryType   = 'delivery';
 let _intercomChecked = false;
@@ -25,7 +27,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     const s = JSON.parse(localStorage.getItem('dlv_client_state') || '{}');
     STATE.uid  = s.uid  || null;
     STATE.user = s.user || null;
-    CART = JSON.parse(localStorage.getItem('dlv_cart') || '[]');
+    CART = JSON.parse(localStorage.getItem('dlv_cart') || '[]')
+      .map(c => ({ ...c, cartKey: c.cartKey || (c.variantName ? `${c.id}::${c.variantName}` : c.id) }));
   } catch {}
 
   // Read uid from URL (from bot link)
@@ -33,6 +36,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (urlUid) { STATE.uid = urlUid; saveClientState(); }
 
   await initFirebase();
+
+  // Последний резерв: найти uid через Telegram ID (uid_index)
+  if (!STATE.uid) {
+    const tgUid = await resolveUidByTgId();
+    if (tgUid) { STATE.uid = tgUid; saveClientState(); }
+  }
 
   if (!STATE.uid) { showScreen('s-no-uid'); return; }
 
@@ -88,7 +97,7 @@ function initMain() {
   startHeartbeat(STATE.uid);
   loadSettings();
   loadMenu();
-  watchActiveOrder();
+  watchActiveOrders();
   showScreen('s-menu');
 }
 
@@ -145,42 +154,77 @@ function renderMenuGrid(cat) {
   const grid  = document.getElementById('menu-grid');
   if (!items.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🍽️</div><div class="empty-text">Нет блюд в этой категории</div></div>'; return; }
   grid.innerHTML = items.map(item => {
-    const cartItem = CART.find(c => c.id === item.id);
-    const qty      = cartItem ? cartItem.qty : 0;
-    const imgHtml  = item.imageUrl
+    const imgHtml = item.imageUrl
       ? `<div class="menu-card-img"><img src="${item.imageUrl}" alt="${item.name}" loading="lazy" onerror="this.parentElement.innerHTML='${item.emoji||'🍽️'}'"></div>`
       : `<div class="menu-card-img">${item.emoji || '🍽️'}</div>`;
-    return `
-    <div class="menu-card" id="mc-${item.id}">
-      ${imgHtml}
-      <div class="menu-card-body">
-        <div class="menu-card-name">${item.name}</div>
-        ${item.description ? `<div class="menu-card-desc">${item.description}</div>` : ''}
-        <div class="qty-row">
-          <div class="menu-card-price">${fmtPrice(item.price)}</div>
-          <div class="qty-ctrl">
-            ${qty > 0 ? `<div class="qty-btn" onclick="changeQty('${item.id}',-1)">−</div><div class="qty-num" id="qty-${item.id}">${qty}</div>` : ''}
-            <div class="qty-btn add" onclick="changeQty('${item.id}',1)">+</div>
+
+    if (item.variants && item.variants.length > 0) {
+      // Товар с вариантами/размерами
+      const variantRows = item.variants.map(v => {
+        const key = `${item.id}::${v.name}`;
+        const qty = (CART.find(c => c.cartKey === key) || {qty:0}).qty;
+        return `
+          <div class="variant-row" id="vr-${key.replace(/[^a-zA-Z0-9_]/g,'_')}">
+            <span class="variant-name">${v.name}</span>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span class="variant-price">${fmtPrice(v.price)}</span>
+              <div class="qty-ctrl">
+                ${qty>0?`<div class="qty-btn" onclick="changeQty('${item.id}',-1,'${v.name}')">−</div><div class="qty-num">${qty}</div>`:''}
+                <div class="qty-btn add" onclick="changeQty('${item.id}',1,'${v.name}')">+</div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+      return `
+        <div class="menu-card menu-card-wide" id="mc-${item.id}">
+          ${imgHtml}
+          <div class="menu-card-body">
+            <div class="menu-card-name">${item.name}</div>
+            ${item.description ? `<div class="menu-card-desc">${item.description}</div>` : ''}
+            <div class="variants-container">${variantRows}</div>
           </div>
-        </div>
-      </div>
-    </div>`;
+        </div>`;
+    } else {
+      // Обычный товар
+      const cartItem = CART.find(c => c.cartKey === item.id || (c.id === item.id && !c.variantName));
+      const qty = cartItem ? cartItem.qty : 0;
+      return `
+        <div class="menu-card" id="mc-${item.id}">
+          ${imgHtml}
+          <div class="menu-card-body">
+            <div class="menu-card-name">${item.name}</div>
+            ${item.description ? `<div class="menu-card-desc">${item.description}</div>` : ''}
+            <div class="qty-row">
+              <div class="menu-card-price">${fmtPrice(item.price)}</div>
+              <div class="qty-ctrl">
+                ${qty>0?`<div class="qty-btn" onclick="changeQty('${item.id}',-1)">−</div><div class="qty-num" id="qty-${item.id}">${qty}</div>`:''}
+                <div class="qty-btn add" onclick="changeQty('${item.id}',1)">+</div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
   }).join('');
 }
 
 // ── Cart quantity ──
-function changeQty(itemId, delta) {
+function changeQty(itemId, delta, variantName = null) {
   tgHaptic('light');
   const menuItem = MENU.find(i => i.id === itemId);
   if (!menuItem) return;
-  let cartItem = CART.find(c => c.id === itemId);
+  const key = variantName ? `${itemId}::${variantName}` : itemId;
+  let cartItem = CART.find(c => c.cartKey === key);
   if (!cartItem) {
     if (delta < 0) return;
-    cartItem = { id: itemId, name: menuItem.name, price: menuItem.price, qty: 0, emoji: menuItem.emoji || '🍽️' };
+    const price = variantName
+      ? (menuItem.variants?.find(v => v.name === variantName)?.price ?? menuItem.price)
+      : menuItem.price;
+    const name  = variantName ? `${menuItem.name} (${variantName})` : menuItem.name;
+    cartItem = { cartKey: key, id: itemId, variantName: variantName||null, name, price, qty: 0, emoji: menuItem.emoji || '🍽️' };
     CART.push(cartItem);
   }
   cartItem.qty = Math.max(0, cartItem.qty + delta);
-  if (cartItem.qty === 0) CART = CART.filter(c => c.id !== itemId);
+  if (cartItem.qty === 0) CART = CART.filter(c => c.cartKey !== key);
   saveCart();
   updateCartUI(itemId);
   updateCartFAB();
@@ -189,13 +233,28 @@ function changeQty(itemId, delta) {
 function updateCartUI(itemId) {
   const menuItem = MENU.find(i => i.id === itemId);
   if (!menuItem) return;
-  const cartItem = CART.find(c => c.id === itemId);
-  const qty = cartItem ? cartItem.qty : 0;
-  const ctrl = document.querySelector(`#mc-${itemId} .qty-ctrl`);
-  if (!ctrl) return;
-  ctrl.innerHTML = qty > 0
-    ? `<div class="qty-btn" onclick="changeQty('${itemId}',-1)">−</div><div class="qty-num" id="qty-${itemId}">${qty}</div><div class="qty-btn add" onclick="changeQty('${itemId}',1)">+</div>`
-    : `<div class="qty-btn add" onclick="changeQty('${itemId}',1)">+</div>`;
+  if (menuItem.variants && menuItem.variants.length > 0) {
+    menuItem.variants.forEach(v => {
+      const key = `${itemId}::${v.name}`;
+      const qty = (CART.find(c => c.cartKey === key) || {qty:0}).qty;
+      const safeId = key.replace(/[^a-zA-Z0-9_]/g,'_');
+      const row = document.getElementById(`vr-${safeId}`);
+      if (!row) return;
+      const ctrl = row.querySelector('.qty-ctrl');
+      if (!ctrl) return;
+      ctrl.innerHTML = qty > 0
+        ? `<div class="qty-btn" onclick="changeQty('${itemId}',-1,'${v.name}')">−</div><div class="qty-num">${qty}</div><div class="qty-btn add" onclick="changeQty('${itemId}',1,'${v.name}')">+</div>`
+        : `<div class="qty-btn add" onclick="changeQty('${itemId}',1,'${v.name}')">+</div>`;
+    });
+  } else {
+    const cartItem = CART.find(c => c.cartKey === itemId || (c.id === itemId && !c.variantName));
+    const qty = cartItem ? cartItem.qty : 0;
+    const ctrl = document.querySelector(`#mc-${itemId} .qty-ctrl`);
+    if (!ctrl) return;
+    ctrl.innerHTML = qty > 0
+      ? `<div class="qty-btn" onclick="changeQty('${itemId}',-1)">−</div><div class="qty-num" id="qty-${itemId}">${qty}</div><div class="qty-btn add" onclick="changeQty('${itemId}',1)">+</div>`
+      : `<div class="qty-btn add" onclick="changeQty('${itemId}',1)">+</div>`;
+  }
 }
 
 function updateCartFAB() {
@@ -224,7 +283,9 @@ function renderCartScreen() {
   document.getElementById('order-btn').disabled = false;
   container.innerHTML = `
     <div class="card card-body" style="gap:10px;display:flex;flex-direction:column">
-      ${CART.map(c => `
+      ${CART.map(c => {
+        const key = c.cartKey || c.id;
+        return `
         <div class="flex items-center gap-2" style="justify-content:space-between">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:22px">${c.emoji}</span>
@@ -235,20 +296,22 @@ function renderCartScreen() {
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="font-weight:700;font-size:14px">${fmtPrice(c.price * c.qty)}</div>
-            <button class="btn-xs btn-ghost" onclick="changeQtyCart('${c.id}',-1)">−</button>
+            <button class="btn-xs btn-ghost" onclick="changeQtyCart('${key}',-1)">−</button>
             <span style="font-weight:700;min-width:16px;text-align:center">${c.qty}</span>
-            <button class="btn-xs btn-ghost" onclick="changeQtyCart('${c.id}',1)">+</button>
+            <button class="btn-xs btn-ghost" onclick="changeQtyCart('${key}',1)">+</button>
           </div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
   const t = cartTotal();
   document.getElementById('cart-total-sum').textContent   = fmtPrice(t);
   document.getElementById('cart-total-final').textContent = fmtPrice(t);
 }
 
-function changeQtyCart(itemId, delta) {
-  changeQty(itemId, delta);
+function changeQtyCart(key, delta) {
+  const cartItem = CART.find(c => (c.cartKey||c.id) === key);
+  if (!cartItem) return;
+  changeQty(cartItem.id, delta, cartItem.variantName || null);
   renderCartScreen();
 }
 
@@ -280,6 +343,10 @@ function selectPayment(el) {
 async function submitOrder() {
   if (!CART.length) { showToast('Корзина пуста', 'warning'); return; }
   if (!isCafeOpen()) { showToast('Кафе сейчас закрыто', 'warning'); return; }
+  if (ACTIVE_ORDERS.length >= 3) {
+    showToast('У вас уже 3 активных заказа. Дождитесь доставки хотя бы одного.', 'warning');
+    return;
+  }
 
   const isPickup = _deliveryType === 'pickup';
   const street  = document.getElementById('addr-street').value.trim();
@@ -316,11 +383,10 @@ async function submitOrder() {
   try {
     await dbSet('orders', orderId, order);
     CART = []; saveCart();
-    ACTIVE_ORDER = order;
     tgHaptic('success');
     showToast('Заказ оформлен!', 'success');
     navTo('s-order');
-    renderActiveOrder();
+    setNav(document.getElementById('nav-order'));
   } catch (e) {
     showToast('Ошибка при оформлении заказа', 'error');
     console.error(e);
@@ -329,63 +395,61 @@ async function submitOrder() {
   btn.disabled = false; btn.textContent = 'Оформить заказ';
 }
 
-// ── Watch active order ──
-function watchActiveOrder() {
-  if (_orderUnsub) { _orderUnsub(); _orderUnsub = null; }
+// ── Watch all active orders (real-time) ──
+function watchActiveOrders() {
+  if (_ordersUnsub) { _ordersUnsub(); _ordersUnsub = null; }
+  _ordersUnsub = onQuerySnap('orders', 'clientUid', '==', STATE.uid, orders => {
+    ACTIVE_ORDERS = orders
+      .filter(o => !['delivered','cancelled'].includes(o.status))
+      .sort((a, b) => (b.createdAt||'').localeCompare(a.createdAt||''));
 
-  // Find latest active order
-  dbQuery('orders', 'clientUid', '==', STATE.uid).then(orders => {
-    const active = orders.filter(o => !['delivered','cancelled'].includes(o.status))
-                         .sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
-    if (active.length) {
-      ACTIVE_ORDER = active[0];
-      subscribeOrder(ACTIVE_ORDER.id);
-      updateOrderNavBadge(true);
-      renderActiveOrder();
-    }
-  });
-}
+    updateOrderNavBadge(ACTIVE_ORDERS.length > 0);
 
-function subscribeOrder(orderId) {
-  if (_orderUnsub) _orderUnsub();
-  _orderUnsub = onDocSnap('orders', orderId, order => {
-    if (!order) return;
-    ACTIVE_ORDER = order;
-    renderActiveOrder();
-    updateOrderNavBadge(!['delivered','cancelled'].includes(order.status));
+    // Show unseen notifications (dedup by orderId+type)
+    orders.forEach(o => {
+      if (o.clientNotification && !o.clientNotification.seen) {
+        const key = `${o.id}:${o.clientNotification.type}`;
+        if (!_shownNotifs.has(key)) {
+          _shownNotifs.add(key);
+          showClientNotification(o);
+        }
+      }
+    });
 
-    // Handle client notifications
-    if (order.clientNotification && !order.clientNotification.seen) {
-      showClientNotification(order);
-    }
-
-    // Delivered/cancelled → unsubscribe after showing notif
-    if (['delivered','cancelled'].includes(order.status)) {
-      setTimeout(() => { if (_orderUnsub) { _orderUnsub(); _orderUnsub = null; } }, 5000);
+    // Refresh order screen if open
+    if (document.getElementById('s-order').classList.contains('active')) {
+      renderAllActiveOrders();
     }
   });
 }
 
 function showClientNotification(order) {
   const type = order.clientNotification.type;
-  const notifId = type === 'accepted' ? 'notif-accepted'
-                : type === 'cancelled' ? 'notif-cancelled'
-                : type === 'delivered' ? 'notif-delivered' : null;
+  const notifId = type === 'accepted'   ? 'notif-accepted'
+                : type === 'cancelled'  ? 'notif-cancelled'
+                : type === 'delivered'  ? 'notif-delivered'
+                : type === 'delivering' ? 'notif-delivering' : null;
   if (!notifId) return;
 
   if (type === 'accepted') {
     const mins = order.deliveryMinutes || 60;
     const h = Math.floor(mins / 60), m = mins % 60;
     const timeStr = h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
-    document.getElementById('notif-accepted-text').textContent =
-      `Ваш заказ принят в работу! Ожидайте доставку в течение ${timeStr}.`;
+    const el = document.getElementById('notif-accepted-text');
+    if (el) el.textContent = order.deliveryType === 'pickup'
+      ? `Заказ принят! Он будет готов примерно через ${timeStr}.`
+      : `Заказ принят! Ожидайте доставку в течение ${timeStr}.`;
+  }
+  if (type === 'delivering') {
+    const el = document.getElementById('notif-delivering-text');
+    if (el) el.textContent = order.clientNotification.message || 'Курьер везёт ваш заказ!';
   }
 
   tgHaptic('heavy');
   playAlert();
-  document.getElementById(notifId).classList.add('open');
+  const notifEl = document.getElementById(notifId);
+  if (notifEl) notifEl.classList.add('open');
 
-  // Mark notification as seen
   dbSet('orders', order.id, { clientNotification: { ...order.clientNotification, seen: true } });
 }
 
@@ -394,109 +458,105 @@ function closeNotif(id) {
   tgHaptic('light');
 }
 
-// ── Render active order ──
-function renderActiveOrder() {
-  if (!ACTIVE_ORDER) return;
-  const o = ACTIVE_ORDER;
+// ── Render all active orders in s-order screen ──
+function renderAllActiveOrders() {
+  const container = document.getElementById('orders-content');
+  if (!container) return;
 
-  // Status badge
-  const badge = document.getElementById('order-status-badge');
-  badge.textContent = statusLabel(o.status);
-  badge.className   = statusBadgeClass(o.status);
-
-  // Status track
-  const steps = [
-    { key:'pending',    icon:'🕐', label:'Принят' },
-    { key:'cooking',    icon:'👨‍🍳', label:'Готовится' },
-    { key:'delivering', icon:'🚴', label:'В пути' },
-    { key:'delivered',  icon:'✅', label:'Доставлен' }
-  ];
-  if (o.status === 'cancelled') {
-    document.getElementById('status-track').innerHTML = '<div style="color:var(--danger);font-weight:600;font-size:14px;text-align:center;width:100%">❌ Заказ отменён</div>';
-  } else {
-    const si = steps.findIndex(s => s.key === o.status);
-    const actualIdx = si < 0 ? 0 : si;
-    document.getElementById('status-track').innerHTML = steps.map((s, i) => {
-      const cls = i < actualIdx ? 'done' : i === actualIdx ? 'active' : '';
-      const lineClass = i < actualIdx ? 'done' : i === actualIdx ? 'active' : '';
-      return `
-        <div class="st-step ${cls}"><div class="st-dot">${cls === 'done' ? '✓' : s.icon}</div><div style="margin-top:4px">${s.label}</div></div>
-        ${i < steps.length - 1 ? `<div class="st-line ${lineClass}"></div>` : ''}
-      `;
-    }).join('');
+  if (!ACTIVE_ORDERS.length) {
+    container.innerHTML = `
+      <div class="empty" style="padding-top:60px">
+        <div class="empty-icon">📦</div>
+        <div class="empty-text">Нет активных заказов</div>
+        <button class="btn btn-primary" style="margin-top:20px" onclick="navTo('s-menu');setNav(document.getElementById('nav-menu'))">🍽️ В меню</button>
+      </div>`;
+    return;
   }
 
-  // Countdown — only when estimatedAt is set by operator (not on initial pending)
-  const cdWrap = document.getElementById('countdown-wrap');
-  const showCd = o.estimatedAt && !['pending','delivered','cancelled'].includes(o.status);
-  if (showCd) {
-    cdWrap.style.display = 'block';
-    const cdLabel = document.querySelector('#countdown-wrap .countdown-lbl');
-    if (cdLabel) cdLabel.textContent = o.deliveryType === 'pickup' ? 'Готовность заказа' : 'Примерное время доставки';
-    updateCountdown(o.estimatedAt);
-  } else {
-    cdWrap.style.display = 'none';
-  }
-
-  // Items
-  document.getElementById('active-order-id').textContent  = '#' + (o.id || '').slice(-6);
-  document.getElementById('active-order-total').textContent = fmtPrice(o.total);
-  document.getElementById('active-order-payment').textContent = o.payment === 'cash' ? '💵 Наличные' : '💳 Карта';
-  const addr = o.address;
-  document.getElementById('active-order-addr').textContent =
-    addr ? `${addr.street} ${addr.house}${addr.apt ? ', кв. ' + addr.apt : ''}` : '—';
-  document.getElementById('active-order-items').innerHTML = (o.items || []).map(it =>
-    `<div class="flex justify-between" style="font-size:13px;margin-bottom:6px">
-       <span>${it.emoji || '🍽️'} ${it.name} ×${it.qty}</span>
-       <span class="font-bold">${fmtPrice(it.price * it.qty)}</span>
-     </div>`
-  ).join('');
-
-  // Info text
-  const infoEl = document.getElementById('order-info-txt');
-  const pickup = o.deliveryType === 'pickup';
-  const infoMap = pickup ? {
-    pending:   'ℹ️ Ваш заказ ожидает подтверждения.',
-    cooking:   '🏪 Заказ принят! Приходите в кафе, когда он будет готов.',
-    delivered: '✅ Заказ выдан. Приятного аппетита!',
-    cancelled: '❌ Заказ отменён. Оператор свяжется с вами.'
-  } : {
-    pending:    'ℹ️ Ваш заказ ожидает подтверждения оператором.',
-    cooking:    '👨‍🍳 Ваш заказ готовится.',
-    delivering: '🚴 Курьер уже везёт ваш заказ!',
-    delivered:  '✅ Заказ доставлен. Приятного аппетита!',
-    cancelled:  '❌ Заказ отменён. Оператор свяжется с вами.'
-  };
-  infoEl.textContent = infoMap[o.status] || '';
-  infoEl.className   = `alert-box ${o.status==='delivered'?'success':o.status==='cancelled'?'danger':'info'}`;
+  container.innerHTML = ACTIVE_ORDERS.map(renderOrderCard).join('');
+  startAllCountdowns();
 }
 
-let _cdInterval = null;
-function updateCountdown(estimatedAt) {
-  if (_cdInterval) clearInterval(_cdInterval);
-  const target = new Date(estimatedAt).getTime();
-  const orderTime = ACTIVE_ORDER?.createdAt ? new Date(ACTIVE_ORDER.createdAt).getTime() : target - 60 * 60 * 1000;
-  const total = target - orderTime;
+function renderOrderCard(o) {
+  const isPickup = o.deliveryType === 'pickup';
+  const steps = isPickup
+    ? [{key:'pending',icon:'🕐',label:'Принят'},{key:'cooking',icon:'👨‍🍳',label:'Готовится'},{key:'delivered',icon:'✅',label:'Готов'}]
+    : [{key:'pending',icon:'🕐',label:'Принят'},{key:'cooking',icon:'👨‍🍳',label:'Готовится'},{key:'delivering',icon:'🚴',label:'В пути'},{key:'delivered',icon:'✅',label:'Доставлен'}];
 
+  const si = steps.findIndex(s => s.key === o.status);
+  const statusTrack = o.status === 'cancelled'
+    ? '<div style="color:var(--danger);font-weight:600;font-size:14px;text-align:center">❌ Заказ отменён</div>'
+    : steps.map((s, i) => {
+        const cls = i < si ? 'done' : i === si ? 'active' : '';
+        return `<div class="st-step ${cls}"><div class="st-dot">${cls==='done'?'✓':s.icon}</div><div style="margin-top:4px;font-size:11px">${s.label}</div></div>${i<steps.length-1?`<div class="st-line ${i<si?'done':i===si?'active':''}"></div>`:''}`;
+      }).join('');
+
+  const showCd = o.estimatedAt && !['pending','delivered','cancelled'].includes(o.status);
+  const cdLabel = isPickup ? 'Готовность заказа' : 'Время доставки';
+
+  const infoMap = isPickup
+    ? {pending:'ℹ️ Ожидает подтверждения.',cooking:'🏪 Принят! Приходите когда будет готов.',delivered:'✅ Выдан. Приятного аппетита!',cancelled:'❌ Отменён.'}
+    : {pending:'ℹ️ Ожидает подтверждения оператором.',cooking:'👨‍🍳 Готовится.',delivering:'🚴 Курьер везёт ваш заказ!',delivered:'✅ Доставлен. Приятного аппетита!',cancelled:'❌ Отменён.'};
+
+  const addr = o.address;
+  const oid = (o.id||'').slice(-6);
+
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hdr">
+        <span class="font-bold">Заказ #${oid}</span>
+        <span class="${statusBadgeClass(o.status)}">${statusLabel(o.status)}</span>
+      </div>
+      <div class="card-body">
+        <div class="status-track" style="margin-bottom:14px">${statusTrack}</div>
+        ${showCd ? `
+          <div class="countdown-box" id="cd-wrap-${o.id}" style="margin-bottom:14px">
+            <div class="countdown-lbl">${cdLabel}</div>
+            <div class="countdown-val" id="cd-val-${o.id}">—</div>
+            <div class="progress-wrap" style="margin-top:8px"><div class="progress-bar" id="cd-bar-${o.id}"></div></div>
+          </div>` : ''}
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:13px;margin-bottom:10px">
+          ${(o.items||[]).map(it=>`<div class="flex justify-between"><span>${it.emoji||'🍽️'} ${it.name} ×${it.qty}</span><span class="font-bold">${fmtPrice(it.price*it.qty)}</span></div>`).join('')}
+        </div>
+        <div class="divider" style="margin:8px 0"></div>
+        <div class="flex justify-between"><span class="text-dim">Итого</span><span class="font-bold text-primary">${fmtPrice(o.total)}</span></div>
+        <div class="flex justify-between mt-1"><span class="text-dim">Оплата</span><span>${o.payment==='cash'?'💵 Наличные':'💳 Карта'}</span></div>
+        ${addr?`<div class="flex justify-between mt-1"><span class="text-dim">Адрес</span><span style="text-align:right;max-width:60%;font-size:12px">${addr.street} ${addr.house}${addr.apt?', кв.'+addr.apt:''}</span></div>`:''}
+        <div class="alert-box ${o.status==='delivered'?'success':o.status==='cancelled'?'danger':'info'}" style="margin-top:10px;font-size:13px">${infoMap[o.status]||''}</div>
+      </div>
+    </div>`;
+}
+
+function startAllCountdowns() {
+  Object.values(_cdIntervals).forEach(clearInterval);
+  _cdIntervals = {};
+  ACTIVE_ORDERS.forEach(o => {
+    if (o.estimatedAt && !['pending','delivered','cancelled'].includes(o.status)) {
+      _startOrderCountdown(o);
+    }
+  });
+}
+
+function _startOrderCountdown(o) {
+  const target    = new Date(o.estimatedAt).getTime();
+  const startTime = o.acceptedAt ? new Date(o.acceptedAt).getTime() : target - 60*60*1000;
+  const total     = target - startTime;
   const tick = () => {
+    const val = document.getElementById(`cd-val-${o.id}`);
+    const bar = document.getElementById(`cd-bar-${o.id}`);
+    if (!val) { clearInterval(_cdIntervals[o.id]); delete _cdIntervals[o.id]; return; }
     const remaining = target - Date.now();
-    const val = document.getElementById('countdown-val');
-    const bar = document.getElementById('countdown-bar');
-    if (!val || !bar) { clearInterval(_cdInterval); return; }
     if (remaining <= 0) {
-      val.textContent = 'Совсем скоро!';
-      val.classList.add('urgent');
-      bar.style.width = '0%';
-      clearInterval(_cdInterval);
-      return;
+      val.textContent = 'Совсем скоро!'; val.classList.add('urgent');
+      if (bar) { bar.style.width = '0%'; bar.classList.add('urgent'); }
+      clearInterval(_cdIntervals[o.id]); delete _cdIntervals[o.id]; return;
     }
     val.textContent = fmtCountdown(remaining);
-    val.classList.toggle('urgent', remaining < 5 * 60 * 1000);
-    bar.style.width = Math.max(0, (remaining / total) * 100) + '%';
-    bar.classList.toggle('urgent', remaining < 5 * 60 * 1000);
+    val.classList.toggle('urgent', remaining < 5*60*1000);
+    if (bar) { bar.style.width = Math.max(0,(remaining/total)*100)+'%'; bar.classList.toggle('urgent', remaining < 5*60*1000); }
   };
   tick();
-  _cdInterval = setInterval(tick, 1000);
+  _cdIntervals[o.id] = setInterval(tick, 1000);
 }
 
 // ── History ──
@@ -525,7 +585,7 @@ async function loadHistory() {
       <div class="order-card-body">
         <div class="text-sm text-dim">${(o.items||[]).map(i=>`${i.emoji||'🍽️'} ${i.name} ×${i.qty}`).join(', ')}</div>
       </div>
-      ${['delivered','cancelled'].includes(o.status)?'':`<div class="order-card-foot"><button class="btn btn-sm btn-primary" onclick="event.stopPropagation();repeatOrder('${o.id}')">🔄 Повторить</button></div>`}
+      <div class="order-card-foot"><button class="btn btn-sm btn-primary" onclick="event.stopPropagation();repeatOrder('${o.id}')">🔄 Повторить</button></div>
     </div>
   `).join('');
 }
@@ -542,25 +602,26 @@ async function repeatOrder(orderId) {
   const o = orders.find(x => x.id === orderId);
   if (!o) return;
 
-  // Re-add items with current prices
   CART = [];
   for (const item of (o.items || [])) {
-    const current = MENU.find(m => m.id === item.id);
-    const price   = current ? current.price : item.price;
-    CART.push({ id: item.id, name: item.name, price, qty: item.qty, emoji: item.emoji || '🍽️' });
+    const variantName = item.variantName || null;
+    const key = variantName ? `${item.id}::${variantName}` : item.id;
+    CART.push({ cartKey: key, id: item.id, variantName, name: item.name, price: item.price, qty: item.qty, emoji: item.emoji || '🍽️' });
   }
   saveCart();
 
-  // Pre-fill address
   if (o.address) {
     document.getElementById('addr-street').value = o.address.street || '';
     document.getElementById('addr-house').value  = o.address.house  || '';
     document.getElementById('addr-apt').value    = o.address.apt    || '';
   }
+  if (o.deliveryType === 'pickup') {
+    selectDeliveryType(document.getElementById('dt-pickup'));
+  }
   if (o.payment === 'card') {
     document.querySelectorAll('.payment-opt').forEach(b => {
-      b.classList.remove('btn-primary');
-      if (b.dataset.val === 'card') b.classList.add('btn-primary');
+      b.classList.remove('btn-primary'); b.classList.add('btn-secondary');
+      if (b.dataset.val === 'card') { b.classList.add('btn-primary'); b.classList.remove('btn-secondary'); }
     });
     _paymentMethod = 'card';
   }
@@ -574,16 +635,13 @@ async function repeatOrder(orderId) {
 function navTo(screenId) {
   showScreen(screenId);
   document.getElementById('cart-fab').classList.add('hidden');
-  if (screenId === 's-menu') {
-    renderMenuGrid(null);
-    updateCartFAB();
-  }
+  if (screenId === 's-menu') { renderMenuGrid(null); updateCartFAB(); }
   if (screenId === 's-cart') renderCartScreen();
-  if (screenId === 's-order') renderActiveOrder();
+  if (screenId === 's-order') renderAllActiveOrders();
 }
 
 function navToOrder() {
-  if (ACTIVE_ORDER && !['delivered','cancelled'].includes(ACTIVE_ORDER.status)) {
+  if (ACTIVE_ORDERS.length > 0) {
     navTo('s-order');
     setNav(document.getElementById('nav-order'));
   } else {

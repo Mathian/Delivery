@@ -261,6 +261,13 @@ select.inp option { background: #1a1a24; }
 .qty-num { font-weight:700;font-size:14px;min-width:18px;text-align:center; }
 .menu-card.unavail { opacity:.5;cursor:not-allowed; }
 .menu-card.unavail:active { transform:none;border-color:var(--border); }
+/* Карточка с вариантами — на всю ширину */
+.menu-card-wide { grid-column: 1 / -1; }
+.variants-container { display:flex;flex-direction:column;gap:0;margin-top:8px; }
+.variant-row { display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border); }
+.variant-row:last-child { border-bottom:none; }
+.variant-name { font-size:13px;font-weight:600; }
+.variant-price { font-size:12px;color:var(--text-dim);margin-right:4px; }
 
 /* ── Category tabs ── */
 .cat-tabs { display:flex;gap:8px;padding:0 20px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none; }

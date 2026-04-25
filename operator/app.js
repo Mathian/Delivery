@@ -25,6 +25,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   await initFirebase();
 
+  // Последний резерв: найти uid через Telegram ID (uid_index)
+  if (!STATE.uid) {
+    const tgUid = await resolveUidByTgId();
+    if (tgUid) { STATE.uid = tgUid; saveState(); }
+  }
+
   if (!STATE.uid) { showScreen('s-no-access'); return; }
 
   const user = await dbGet('users', STATE.uid);
@@ -329,10 +335,11 @@ async function openAssignCourier(orderId) {
 async function assignCourier(courierId, courierName) {
   if (!_assignOrderId) return;
   await dbSet('orders', _assignOrderId, {
-    status:         'delivering',
-    courierUid:     courierId,
+    status:          'delivering',
+    courierUid:      courierId,
     courierName,
-    sentToCourierAt: new Date().toISOString()
+    sentToCourierAt: new Date().toISOString(),
+    clientNotification: { type: 'delivering', message: `Курьер ${courierName} везёт ваш заказ!`, seen: false }
   });
   document.getElementById('courier-overlay').classList.remove('open');
   showToast(`Передано курьеру ${courierName}`, 'success');

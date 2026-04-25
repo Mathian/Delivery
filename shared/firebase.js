@@ -220,6 +220,18 @@ const tg = window.Telegram?.WebApp || null;
 function tgReady()   { try { tg?.ready(); tg?.expand(); } catch {} }
 function tgHaptic(t='light') { try { tg?.HapticFeedback?.impactOccurred(t); } catch {} }
 
+// ─────────────────────── UID resolver ───────────────────────
+// Если uid нет в URL и localStorage — ищем по Telegram ID в uid_index
+async function resolveUidByTgId() {
+  try {
+    const tgUser = tg?.initDataUnsafe?.user;
+    if (!tgUser?.id) return null;
+    const tgId = String(tgUser.id);
+    const idx = await dbGet('uid_index', tgId);
+    return idx?.uid || null;
+  } catch { return null; }
+}
+
 // ─────────────────────── State helpers ───────────────────────
 // Each app defines its own STATE and uses these helpers
 function readUidFromUrl() {

@@ -8,6 +8,7 @@ let MENU_ITEMS  = [];
 let ALL_ORDERS  = [];
 let CATEGORIES  = [];
 let _editItemId = null;
+let _variants = [];  // variants being edited in the sheet
 let _unsubOrders = null;
 
 // ── Boot ──
@@ -22,6 +23,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (urlUid) { STATE.uid = urlUid; saveAdminState(); }
 
   await initFirebase();
+
+  // Последний резерв: найти uid через Telegram ID (uid_index)
+  if (!STATE.uid) {
+    const tgUid = await resolveUidByTgId();
+    if (tgUid) { STATE.uid = tgUid; saveAdminState(); }
+  }
 
   if (!STATE.uid) { showScreen('s-no-access'); return; }
 
@@ -84,6 +91,7 @@ function renderMenuAdminList() {
             <div class="admin-item-name">${item.name} ${item.available===false?'<span class="badge badge-cancelled" style="font-size:10px">недоступно</span>':''}</div>
             <div class="admin-item-price">${fmtPrice(item.price)}</div>
             ${item.description ? `<div class="text-xs text-dim" style="margin-top:2px">${item.description}</div>` : ''}
+            ${item.variants && item.variants.length ? `<div class="text-xs text-dim" style="margin-top:2px">📐 ${item.variants.map(v=>v.name+' — '+fmtPrice(v.price)).join(' · ')}</div>` : ''}
           </div>
           <div class="admin-item-actions">
             <button class="btn-xs btn-secondary" onclick="openEditItem('${item.id}')">✏️</button>
@@ -104,6 +112,8 @@ function openAddItem() {
   document.getElementById('item-img').value = '';
   document.getElementById('item-available').checked = true;
   document.getElementById('item-delete-btn').classList.add('hidden');
+  _variants = [];
+  renderVariants();
   const previewImg = document.getElementById('img-preview-img');
   if (previewImg) { previewImg.style.display = 'none'; previewImg.src = ''; }
   const hint = document.getElementById('img-upload-hint');
@@ -124,6 +134,8 @@ function openEditItem(itemId) {
   document.getElementById('item-img').value   = item.imageUrl || '';
   document.getElementById('item-available').checked = item.available !== false;
   document.getElementById('item-delete-btn').classList.remove('hidden');
+  _variants = (item.variants || []).map(v => ({name: v.name, price: v.price}));
+  renderVariants();
   const previewImg = document.getElementById('img-preview-img');
   if (previewImg) {
     if (item.imageUrl) { previewImg.src = item.imageUrl; previewImg.style.display = 'block'; }
@@ -159,7 +171,8 @@ async function saveItem() {
     category:    document.getElementById('item-cat').value || '',
     emoji:       document.getElementById('item-emoji').value.trim() || '🍽️',
     imageUrl:    document.getElementById('item-img').value.trim(),
-    available:   document.getElementById('item-available').checked
+    available:   document.getElementById('item-available').checked,
+    variants:    _variants.filter(v => v.name.trim()).map(v => ({name: v.name.trim(), price: Number(v.price) || 0}))
   };
 
   await dbSet('menu_items', itemId, itemData);
@@ -409,21 +422,22 @@ async function loadUsersSection(role) {
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   if (!users.length) {
-    container.innerHTML = '<div class="text-dim text-sm" style="padding:12px 4px">Нет пользователей</div>';
+    container.innerHTML = '<div class="text-dim text-sm" style="padding:12px 4px">Нет пользователей с этой ролью</div>';
     return;
   }
 
-  const roleEmoji = { client: '👤', operator: '🎧', courier: '🚴' };
+  const roleEmoji = { client: '👤', operator: '🎧', courier: '🚴', admin: '🔧' };
   container.innerHTML = users.map(u => `
-    <div class="list-item" style="padding:12px;margin-bottom:6px">
-      <div class="avatar">${roleEmoji[role] || '👤'}</div>
-      <div class="li-body">
-        <div class="li-title">${u.name || '—'}</div>
-        <div class="li-sub">${u.phone || '—'}</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);${u.blocked?'border-color:var(--danger);':''}" >
+      <div style="font-size:26px;min-width:36px;text-align:center">${roleEmoji[role] || '👤'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:14px">${u.name || '—'}</div>
+        <div style="font-size:12px;color:var(--text-dim)">${u.phone || u.tgId || '—'}</div>
+        ${u.blocked ? '<div style="font-size:11px;color:var(--danger);font-weight:600">🚫 Заблокирован</div>' : ''}
       </div>
       <button class="btn-xs ${u.blocked ? 'btn-success' : 'btn-danger'}"
               onclick="toggleBlock('${u.uid || u.id}', ${!!u.blocked}, '${role}')">
-        ${u.blocked ? '✅ Разбл.' : '🚫 Блок.'}
+        ${u.blocked ? '✅ Разблок.' : '🚫 Блок.'}
       </button>
     </div>
   `).join('');
@@ -434,4 +448,36 @@ async function toggleBlock(uid, currentBlocked, role) {
   await dbSet('users', uid, { blocked: newState });
   showToast(newState ? 'Пользователь заблокирован' : 'Пользователь разблокирован', newState ? 'warning' : 'success');
   await loadUsersSection(role);
+}
+
+// ══════════════════════════════════════════════════════════
+// VARIANTS
+// ══════════════════════════════════════════════════════════
+
+function renderVariants() {
+  const list = document.getElementById('variants-list');
+  if (!list) return;
+  if (!_variants.length) {
+    list.innerHTML = '<div class="text-dim text-sm" style="padding:4px 0">Нет вариантов — один товар, одна цена</div>';
+    return;
+  }
+  list.innerHTML = _variants.map((v, i) => `
+    <div style="display:flex;gap:6px;align-items:center">
+      <input class="inp" style="flex:2;font-size:13px" placeholder="Название (напр. 20 см)" value="${v.name.replace(/"/g,'&quot;')}"
+             oninput="_variants[${i}].name=this.value">
+      <input class="inp" type="number" style="flex:1;font-size:13px" placeholder="Цена ₸" value="${v.price||''}"
+             oninput="_variants[${i}].price=parseFloat(this.value)||0">
+      <button class="btn-xs btn-danger" onclick="removeVariant(${i})" type="button">✕</button>
+    </div>
+  `).join('');
+}
+
+function addVariant() {
+  _variants.push({name: '', price: 0});
+  renderVariants();
+}
+
+function removeVariant(idx) {
+  _variants.splice(idx, 1);
+  renderVariants();
 }
